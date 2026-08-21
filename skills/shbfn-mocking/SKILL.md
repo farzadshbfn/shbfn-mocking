@@ -56,9 +56,9 @@ protocol TokenStoring {
 }
 ```
 
-Prefer typed `throws` on a protocol. It also types the `.throws` knob, so the test can
-write `.throws = .missingToken`. A witness struct closure property cannot use typed
-`throws` yet, because the macro drops the failure type when it builds the struct.
+Prefer typed `throws`. It also types the `.throws` knob, so the test can write
+`.throws = .missingToken`. It works on a protocol method and on a witness struct
+closure property.
 
 | Spelling | Meaning |
 |----------|---------|

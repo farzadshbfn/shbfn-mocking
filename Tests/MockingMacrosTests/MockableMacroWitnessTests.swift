@@ -10,6 +10,64 @@ import Testing
 // A "witness struct" carries behavior in closure-typed stored properties. `@Mockable` generates a nested
 // `Mock` controller (with `$` peers), an `init(mock:)`, an `instance`, and a lenient `static var mock`.
 struct `Mockable Macro Witness` {
+
+    @Test func typedThrowsClosureProperty() {
+        assertMacro {
+            """
+            @Mockable
+            struct TokenStore {
+                var token: () async throws(AuthError) -> String
+                var save: (_ key: String, _ value: Int) throws(AuthError) -> Void
+                var refresh: (_ force: Bool) async -> Void
+            }
+            """
+        } expansion: {
+            """
+            struct TokenStore {
+                var token: () async throws(AuthError) -> String
+                var save: (_ key: String, _ value: Int) throws(AuthError) -> Void
+                var refresh: (_ force: Bool) async -> Void
+            }
+
+            extension TokenStore: Mockable {
+                #if MOCKING
+                final class Mock: Sendable, MockWithable {
+                    nonisolated let $token = Mocking.Mock.Method<Void, String>.AsyncThrows<AuthError>(subject: "token()")
+
+                    nonisolated let $save = Mocking.Mock.Method<(key: String, value: Int), Void>.SyncThrows<AuthError>(subject: "save(key:value:)")
+
+                    nonisolated let $refresh = Mocking.Mock.Method<Bool, Void>.Async(subject: "refresh(force:)")
+
+                    init() {
+                    }
+
+                    var instance: TokenStore {
+                        TokenStore(mock: self)
+                    }
+                }
+
+                static var mock: TokenStore {
+                    Mock().instance
+                }
+
+                init(mock: Mock) {
+                    self.init(
+                        token: { () async throws(AuthError) in
+                            try await mock.$token.result()
+                        },
+                        save: { (key: String, value: Int) throws(AuthError) in
+                            try mock.$save.result((key: key, value: value))
+                        },
+                        refresh: { force in
+                            await mock.$refresh.result(force)
+                        }
+                    )
+                }
+                #endif
+            }
+            """
+        }
+    }
     @Test func closureAndValueProperties() {
         assertMacro {
             """

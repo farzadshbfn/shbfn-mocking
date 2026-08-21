@@ -61,7 +61,12 @@ enum WitnessMockMacroSupport {
         return Property(
             name: name,
             peerDeclaration: peer,
-            wiringExpression: closureWiring(name: name, params: params, isAsync: isAsync, throwing: failure != nil)
+            wiringExpression: closureWiring(
+                name: name,
+                params: params,
+                isAsync: isAsync,
+                failure: failure
+            )
         )
     }
 
@@ -112,7 +117,7 @@ enum WitnessMockMacroSupport {
         name: String,
         params: TupleTypeElementListSyntax,
         isAsync: Bool,
-        throwing: Bool
+        failure: String?
     ) -> String {
         let peer = MacroSyntaxSupport.mockPeerName(for: name)
         let elements = Array(params)
@@ -131,10 +136,39 @@ enum WitnessMockMacroSupport {
             callArgs = "((\(fields.joined(separator: ", "))))"
         }
 
-        let effects = "\(throwing ? "try " : "")\(isAsync ? "await " : "")"
+        let effects = "\(failure != nil ? "try " : "")\(isAsync ? "await " : "")"
         let body = "\(effects)mock.\(peer).result\(callArgs)"
+
+        // A typed `throws(E)` property needs an explicit closure signature: Swift infers an unannotated
+        // closure literal as `throws(any Error)`, which cannot convert to the declared failure type.
+        if let signature = typedThrowsSignature(
+            params: elements,
+            variables: variables,
+            isAsync: isAsync,
+            failure: failure
+        ) {
+            return "\(name): { \(signature) in \(body) }"
+        }
+
         let capture = variables.isEmpty ? "" : "\(variables.joined(separator: ", ")) in "
         return "\(name): { \(capture)\(body) }"
+    }
+
+    /// Explicit closure signature for a typed-throws property, or `nil` when plain inference is enough.
+    /// Untyped `throws` and non-throwing closures keep the terser inferred form.
+    private static func typedThrowsSignature(
+        params: [TupleTypeElementSyntax],
+        variables: [String],
+        isAsync: Bool,
+        failure: String?
+    ) -> String? {
+        guard let failure, failure != MacroSyntaxSupport.anyError else { return nil }
+        let declaredParams = params.enumerated().map { index, element in
+            "\(variables[index]): \(MacroSyntaxSupport.typeName(from: element.type))"
+        }
+        // The result type stays inferred: the memberwise-init parameter supplies it, and spelling it here
+        // would have to reproduce every declared spelling exactly.
+        return "(\(declaredParams.joined(separator: ", ")))\(isAsync ? " async" : "") throws(\(failure))"
     }
 
     private static func isInout(_ element: TupleTypeElementSyntax) -> Bool {
