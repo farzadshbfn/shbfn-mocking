@@ -216,5 +216,69 @@ struct `Macro Diagnostics` {
             }
         )
     }
+
+    @Test func overloadedMethodDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                @Mockable
+                protocol VoidWorker {
+                    func run()
+                    func run(force: Bool)
+                }
+                """
+            },
+            diagnostics: [
+                DiagnosticSpec(
+                    message: """
+                    @Mockable cannot mock two members named 'run'. Both would declare the peer '$run'. \
+                    Rename one member.
+                    """,
+                    line: 1,
+                    column: 1
+                ),
+            ],
+            expansion: {
+                """
+                protocol VoidWorker {
+                    func run()
+                    func run(force: Bool)
+                }
+                """
+            }
+        )
+    }
+
+    @Test func methodAndPropertySharingANameDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                @Mockable
+                protocol Runner {
+                    var run: Bool { get }
+                    func run()
+                }
+                """
+            },
+            diagnostics: [
+                DiagnosticSpec(
+                    message: """
+                    @Mockable cannot mock two members named 'run'. Both would declare the peer '$run'. \
+                    Rename one member.
+                    """,
+                    line: 1,
+                    column: 1
+                ),
+            ],
+            expansion: {
+                """
+                protocol Runner {
+                    var run: Bool { get }
+                    func run()
+                }
+                """
+            }
+        )
+    }
 }
 #endif

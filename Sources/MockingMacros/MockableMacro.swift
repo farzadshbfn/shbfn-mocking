@@ -19,6 +19,9 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         }
 
         if let protocolDecl = declaration.as(ProtocolDeclSyntax.self) {
+            // The peer role reports this and emits no class; don't dangle an alias to a missing type.
+            guard duplicatePeerName(in: protocolDecl) == nil else { return [] }
+
             if MacroSyntaxSupport.hasAssociatedTypes(protocolDecl) {
                 // The peer role reports this and emits no class; don't dangle an alias to a missing type.
                 guard !protocolHasStaticRequirement(protocolDecl) else { return [] }
@@ -54,6 +57,11 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
             throw MockableMacroError.staticRequirementInGenericProtocol
         }
 
+        // Every peer is `$name`, so two members with one name would declare `$name` twice.
+        if let duplicate = duplicatePeerName(in: protocolDecl) {
+            throw MockableMacroError.duplicatePeerName(duplicate)
+        }
+
         let members = peerMacroMembers(
             from: protocolDecl,
             mockClassName: mockClassName,
@@ -84,6 +92,34 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
             }
             return false
         }
+    }
+
+    /// First member name that two peers would claim. Every peer is `$name`, so two members with one
+    /// name produce two `let $name` declarations. A static and an instance member may share a name,
+    /// because `static let $run` and `nonisolated let $run` can both live in the class.
+    private static func duplicatePeerName(in protocolDecl: ProtocolDeclSyntax) -> String? {
+        var seen: Set<PeerNameKey> = []
+        for member in protocolDecl.memberBlock.members {
+            let key: PeerNameKey?
+            if let function = member.decl.as(FunctionDeclSyntax.self) {
+                key = PeerNameKey(
+                    name: function.name.text,
+                    isStatic: MacroSyntaxSupport.isStatic(function.modifiers)
+                )
+            } else if let property = member.decl.as(VariableDeclSyntax.self),
+                      let identifier = property.bindings.first?.pattern
+                          .as(IdentifierPatternSyntax.self)?.identifier.text {
+                key = PeerNameKey(
+                    name: identifier,
+                    isStatic: MacroSyntaxSupport.isStatic(property.modifiers)
+                )
+            } else {
+                key = nil
+            }
+            guard let key else { continue }
+            guard seen.insert(key).inserted else { return key.name }
+        }
+        return nil
     }
 
     private static func mockAccessorExtension(
@@ -286,6 +322,7 @@ enum MockableMacroError: Error, CustomStringConvertible {
     case staticRequirementInGenericProtocol
     case witnessMockCollision
     case unsupportedClosureParameter
+    case duplicatePeerName(String)
 
     var description: String {
         switch self {
@@ -299,6 +336,17 @@ enum MockableMacroError: Error, CustomStringConvertible {
             "@Mockable cannot synthesize a mock: 'Mock' is already declared. Rename the nested type."
         case .unsupportedClosureParameter:
             "@Mockable does not support 'inout' or variadic parameters in closure properties."
+        case .duplicatePeerName(let name):
+            """
+            @Mockable cannot mock two members named '\(name)'. Both would declare the peer '$\(name)'. \
+            Rename one member.
+            """
         }
     }
+}
+
+/// Identity of a generated peer. A static and an instance member can share a name without a collision.
+private struct PeerNameKey: Hashable {
+    let name: String
+    let isStatic: Bool
 }

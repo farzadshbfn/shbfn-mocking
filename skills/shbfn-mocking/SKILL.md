@@ -91,6 +91,11 @@ Pick the shape by what you need:
 
 Call the public API (`fetch`, `token`). Configure and inspect through the `$` peer.
 
+A peer takes its name from the member, so two members cannot share a name. `func run()` and
+`func run(force: Bool)` both claim `$run`, and the macro reports a diagnostic. Rename one
+member. A static member and an instance member may share a name, because their peers do not
+collide.
+
 ### Structs
 
 A struct gets the same grammar as a protocol: `Type.Mock()`, `$` peers, `init(mock:)`,

@@ -469,6 +469,12 @@ struct MockedMultiArgService {
 }
 
 @Mockable
+protocol Beacon {
+    static func ping() -> String
+    func ping() -> String
+}
+
+@Mockable
 protocol CatalogAPI {
     static var prefix: String { get }
     static func item(id: Int) -> String
@@ -726,6 +732,19 @@ struct `Macros` {
         #expect(service.$fetch.callCount == 1)
         #expect(service.$fetch.args?.api == "khiar")
         #expect(service.$fetch.args?.id == 7)
+    }
+
+    @Test
+    func `a static member and an instance member may share a name`() {
+        BeaconMock.$ping.returns = "static"
+        let sut = Beacon.Mock().with {
+            $0.$ping.returns = "instance"
+        }
+
+        #expect(BeaconMock.ping() == "static")
+        #expect(sut.ping() == "instance")
+        #expect(BeaconMock.$ping.callCount == 1)
+        #expect(sut.$ping.callCount == 1)
     }
 
     @Test
