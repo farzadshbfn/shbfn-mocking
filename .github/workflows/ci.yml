@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a PR cancels that PR's still-running CI.
+concurrency:
+  group: ci-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # macOS runners ship Swift with Xcode. Pinned on Linux, because the macro
+      # tests need a toolchain with prebuilt swift-syntax.
+      - name: Set up Swift
+        if: runner.os == 'Linux'
+        uses: SwiftyLab/setup-swift@v1
+        with:
+          swift-version: "6.2.3"
+
+      - name: Test
+        run: swift test --xunit-output test-results.xml
+
+      # SwiftPM writes Swift Testing results to <name>-swift-testing.xml.
+      - name: Report
+        if: always()
+        uses: mikepenz/action-junit-report@v6
+        with:
+          report_paths: test-results*.xml
+          check_name: Tests (${{ matrix.os }})

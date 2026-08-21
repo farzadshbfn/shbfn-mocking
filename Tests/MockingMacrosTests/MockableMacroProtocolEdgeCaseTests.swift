@@ -1,0 +1,263 @@
+//
+//  Copyright © 2026 SHBFN. All rights reserved.
+//  See LICENSE in the project root for full details.
+//
+
+#if os(macOS) || os(Linux)
+import Testing
+
+// swiftlint:disable function_body_length line_length
+struct `Mockable Macro Protocol Edge Cases` {
+    @Test func protocolNestedInExtension() {
+        assertMacro {
+            """
+            struct FeatureNamespace {}
+
+            extension FeatureNamespace {
+                @Mockable
+                protocol Store {
+                    var count: Int { get }
+                }
+            }
+            """
+        } expansion: {
+            """
+            struct FeatureNamespace {}
+
+            extension FeatureNamespace {
+                protocol Store {
+                    var count: Int { get }
+                }
+
+                #if MOCKING
+                final class StoreMock: Store, Sendable, MockWithable {
+                    var count: Int {
+                        get {
+                            return $count.get.result()
+                        }
+                    }
+
+                    #if MOCKING
+                    nonisolated let $count = Mocking.Mock.Property<Int>.Get(subject: "count")
+                    #endif
+
+                    init() {
+                    }
+
+                    var instance: StoreMock {
+                        self
+                    }
+                }
+                #endif
+            }
+
+            extension FeatureNamespace.Store {
+                #if MOCKING
+                static var mock: FeatureNamespace.StoreMock {
+                    FeatureNamespace.StoreMock()
+                }
+                #endif
+            }
+
+            extension FeatureNamespace.Store {
+                #if MOCKING
+                typealias Mock = FeatureNamespace.StoreMock
+                #endif
+            }
+            """
+        }
+    }
+
+    @Test func `preserves nested Error in typed throws and qualifies Swift.Error for untyped throws`() {
+        assertMacro {
+            """
+            enum Authentication {
+                enum Error: Swift.Error {}
+
+                @Mockable
+                protocol Transport {
+                    func send(_ request: URLRequest) async throws(Error) -> (Data, HTTPURLResponse)
+                    func ping() async throws
+                }
+            }
+            """
+        } expansion: {
+            """
+            enum Authentication {
+                enum Error: Swift.Error {}
+                protocol Transport {
+                    func send(_ request: URLRequest) async throws(Error) -> (Data, HTTPURLResponse)
+                    func ping() async throws
+                }
+
+                #if MOCKING
+                final class TransportMock: Transport, Sendable, MockWithable {
+                    func send(_ request: URLRequest) async throws(Error) -> (Data, HTTPURLResponse) {
+                        return try await $send.result(request)
+                    }
+
+                    #if MOCKING
+                    nonisolated let $send = Mocking.Mock.Method<URLRequest, (Data, HTTPURLResponse)>.AsyncThrows<Error>(subject: "send(_:)")
+                    #endif
+                    func ping() async throws {
+                        return try await $ping.result()
+                    }
+
+                    #if MOCKING
+                    nonisolated let $ping = Mocking.Mock.Method<Void, Void>.AsyncThrows<any Swift.Error>(subject: "ping()")
+                    #endif
+
+                    init() {
+                    }
+
+                    var instance: TransportMock {
+                        self
+                    }
+                }
+                #endif
+            }
+
+            extension Authentication.Transport {
+                #if MOCKING
+                static var mock: Authentication.TransportMock {
+                    Authentication.TransportMock()
+                }
+                #endif
+            }
+
+            extension Authentication.Transport {
+                #if MOCKING
+                typealias Mock = Authentication.TransportMock
+                #endif
+            }
+            """
+        }
+    }
+
+    @Test func protocolWithOptionalAndIUOTypes() {
+        assertMacro {
+            """
+            @Mockable
+            protocol OptionalService {
+                var count: Int? { get set }
+                func load(id: Int?) -> Int!
+            }
+            """
+        } expansion: {
+            """
+            protocol OptionalService {
+                var count: Int? { get set }
+                func load(id: Int?) -> Int!
+            }
+
+            #if MOCKING
+            final class OptionalServiceMock: OptionalService, Sendable, MockWithable {
+                var count: Int? {
+                    get {
+                        return $count.get.result()
+                    }
+                    set {
+                        $count.set.result(newValue)
+                    }
+                }
+
+                #if MOCKING
+                nonisolated let $count = Mocking.Mock.Property<Int?>.GetSet(subject: "count")
+                #endif
+                func load(id: Int?) -> Int! {
+                    return $load.result(id)
+                }
+
+                #if MOCKING
+                nonisolated let $load = Mocking.Mock.Method<Int?, Int?>.Sync(subject: "load(id:)")
+                #endif
+
+                init() {
+                }
+
+                var instance: OptionalServiceMock {
+                    self
+                }
+            }
+            #endif
+
+            extension OptionalService {
+                #if MOCKING
+                static var mock: OptionalServiceMock {
+                    OptionalServiceMock()
+                }
+                #endif
+            }
+
+            extension OptionalService {
+                #if MOCKING
+                typealias Mock = OptionalServiceMock
+                #endif
+            }
+            """
+        }
+    }
+
+    @Test func protocolWithStaticRequirementsGeneratesMockClass() {
+        assertMacro {
+            """
+            @Mockable
+            protocol CatalogAPI {
+                static var prefix: String { get }
+                static func item(id: Int) -> String
+            }
+            """
+        } expansion: {
+            """
+            protocol CatalogAPI {
+                static var prefix: String { get }
+                static func item(id: Int) -> String
+            }
+
+            #if MOCKING
+            final class CatalogAPIMock: CatalogAPI, Sendable, MockWithable {
+                static var prefix: String {
+                    get {
+                        return $prefix.get.result()
+                    }
+                }
+
+                #if MOCKING
+                static let $prefix = Mocking.Mock.Property<String>.Get(subject: "static prefix")
+                #endif
+                static func item(id: Int) -> String {
+                    return $item.result(id)
+                }
+
+                #if MOCKING
+                static let $item = Mocking.Mock.Method<Int, String>.Sync(subject: "static item(id:)")
+                #endif
+
+                init() {
+                }
+
+                var instance: CatalogAPIMock {
+                    self
+                }
+            }
+            #endif
+
+            extension CatalogAPI {
+                #if MOCKING
+                static var mock: CatalogAPIMock {
+                    CatalogAPIMock()
+                }
+                #endif
+            }
+
+            extension CatalogAPI {
+                #if MOCKING
+                typealias Mock = CatalogAPIMock
+                #endif
+            }
+            """
+        }
+    }
+}
+// swiftlint:enable function_body_length line_length
+#endif
