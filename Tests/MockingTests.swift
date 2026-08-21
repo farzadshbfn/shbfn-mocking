@@ -997,3 +997,124 @@ struct `Mockable Generic Methods` {
         #expect(mock.$send.args as? Int == 1)
     }
 }
+
+@Mockable
+protocol VoidWorker {
+    func run()
+    func runForced(force: Bool)
+    func save() throws
+    func fetch() async
+    func store() async throws
+}
+
+@Suite
+struct `Void Output Leniency` {
+    @Test
+    func `sync zero-argument Void method is lenient`() {
+        let mock = VoidWorker.Mock()
+
+        mock.run()
+
+        #expect(mock.$run.callCount == 1)
+    }
+
+    @Test
+    func `sync Void method with an argument is lenient`() {
+        let mock = VoidWorker.Mock()
+
+        mock.runForced(force: true)
+
+        #expect(mock.$runForced.callCount == 1)
+        #expect(mock.$runForced.args == true)
+    }
+
+    @Test
+    func `throwing sync zero-argument Void method is lenient`() throws {
+        let mock = VoidWorker.Mock()
+
+        try mock.save()
+
+        #expect(mock.$save.callCount == 1)
+    }
+
+    @Test
+    func `async zero-argument Void method is lenient`() async {
+        let mock = VoidWorker.Mock()
+
+        await mock.fetch()
+
+        #expect(mock.$fetch.callCount == 1)
+    }
+
+    @Test
+    func `throwing async zero-argument Void method is lenient`() async throws {
+        let mock = VoidWorker.Mock()
+
+        try await mock.store()
+
+        #expect(mock.$store.callCount == 1)
+    }
+
+    @Test
+    func `standalone sync Void method double is lenient`() {
+        let mock = Mock.Method<Void, Void>.Sync()
+
+        mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `standalone async Void method double is lenient`() async {
+        let mock = Mock.Method<Void, Void>.Async()
+
+        await mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `standalone typed-throws sync Void method double is lenient`() throws {
+        let mock = Mock.Method<Void, Void>.SyncThrows<MockedServiceError>()
+
+        try mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `standalone typed-throws async Void method double is lenient`() async throws {
+        let mock = Mock.Method<Void, Void>.AsyncThrows<MockedServiceError>()
+
+        try await mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `exclusive sync Void method traps when not configured`() async {
+        await #expect(processExitsWith: .failure) {
+            let mock = Mock.Method<Void, Void>.Sync()
+            mock.isExclusive = true
+            mock.result()
+        }
+    }
+
+    @Test
+    func `exclusive async Void method traps when not configured`() async {
+        await #expect(processExitsWith: .failure) {
+            let mock = Mock.Method<Void, Void>.Async()
+            mock.isExclusive = true
+            await mock.result()
+        }
+    }
+
+    @Test
+    func `exclusive Void protocol method traps when not configured`() async {
+        await #expect(processExitsWith: .failure) {
+            let mock = VoidWorker.Mock()
+            mock.$fetch.isExclusive = true
+            await mock.fetch()
+        }
+    }
+}

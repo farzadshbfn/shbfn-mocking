@@ -222,8 +222,8 @@ Only one knob is active at a time. When you set one, the others clear.
 - Properties split into `$name.get` and `$name.set`. Read-only properties have `get` only.
 - The mock records setter calls automatically. Use `$name.set.onCall` only for custom
   setter behavior.
-- A method that returns `Void` needs no configuration, unless it also takes no parameters.
-  `func fetch() async` traps when unconfigured, so give it `.onCall = { _ in }`.
+- A method that returns `Void` needs no configuration. This includes a method that also
+  takes no parameters, such as `func fetch() async`.
 
 #### `isExclusive`
 
