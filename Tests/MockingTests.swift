@@ -481,6 +481,19 @@ struct TokenStore {
     var refresh: (_ force: Bool) async -> Void
 }
 
+enum WitnessAuthError: Error, Equatable {
+    case missingToken
+}
+
+// Typed `throws(E)` on a witness closure property: the `$` peer and the generated thunk both carry `E`.
+@Mockable
+struct TypedThrowsWitness {
+    var token: () async throws(WitnessAuthError) -> String
+    var read: (_ key: String) throws(WitnessAuthError) -> String
+    var save: (String) throws(WitnessAuthError) -> Void
+    var refresh: (_ force: Bool) async -> Void
+}
+
 @Mockable
 struct SyncWitness {
     var compute: (Int) -> Int
@@ -789,6 +802,47 @@ struct `Witness structs` {
 
         #expect(store.clientID == "")
         #expect(try await store.token() == "")
+    }
+
+    @Test
+    func `typed throws closure property keeps its failure type`() async throws {
+        let mock = TypedThrowsWitness.Mock().with {
+            $0.$token.throws = .missingToken
+            $0.$read.returns = "value"
+            $0.$save.throws = .missingToken
+        }
+        let store = mock.instance
+
+        // The knob is typed, so `.missingToken` needs no spelling and the thrown value needs no cast.
+        await #expect(throws: WitnessAuthError.missingToken) { try await store.token() }
+        #expect(try store.read("key") == "value")
+        #expect(throws: WitnessAuthError.missingToken) { try store.save("value") }
+
+        do throws(WitnessAuthError) {
+            _ = try await store.token()
+            Issue.record("expected a typed failure")
+        } catch {
+            #expect(error == .missingToken)
+        }
+
+        #expect(mock.$read.args == "key")
+        #expect(mock.$save.callCount == 1)
+    }
+
+    @Test
+    func `typed throws closure property takes a throwing onCall handler`() throws {
+        let mock = TypedThrowsWitness.Mock().with {
+            // The typed `onCall` overload wins, so the handler can throw the declared failure type.
+            $0.$read.onCall = { key throws(WitnessAuthError) in
+                guard key == "known" else { throw .missingToken }
+                return "value"
+            }
+        }
+        let store = mock.instance
+
+        #expect(try store.read("known") == "value")
+        #expect(throws: WitnessAuthError.missingToken) { try store.read("other") }
+        #expect(mock.$read.callCount == 2)
     }
 
     @Test
