@@ -318,6 +318,58 @@ struct `Mockable Macro Protocol Edge Cases` {
             """
         }
     }
+
+    @Test func asyncThrowingProperty() {
+        assertMacro {
+            """
+            @Mockable
+            protocol Vault {
+                var token: String { get async throws }
+            }
+            """
+        } expansion: {
+            """
+            protocol Vault {
+                var token: String { get async throws }
+            }
+
+            #if MOCKING
+            final class VaultMock: Vault, Sendable, MockWithable {
+                var token: String {
+                    get async throws {
+                        return try await $token.get.result()
+                    }
+                }
+
+                #if MOCKING
+                nonisolated let $token = Mocking.Mock.Property<String>.GetAsyncThrows<any Swift.Error>(subject: "token")
+                #endif
+
+                init() {
+                }
+
+                var instance: VaultMock {
+                    self
+                }
+            }
+            #endif
+
+            extension Vault {
+                #if MOCKING
+                static var mock: VaultMock {
+                    VaultMock()
+                }
+                #endif
+            }
+
+            extension Vault {
+                #if MOCKING
+                typealias Mock = VaultMock
+                #endif
+            }
+            """
+        }
+    }
 }
 // swiftlint:enable function_body_length line_length
 #endif

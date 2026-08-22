@@ -179,8 +179,14 @@ struct MockedPropertyService {
     @MockedProperty(.get) var label: String
     @MockedProperty(.getSet) var title: String
     @MockedProperty(.getThrows(MockedServiceError.self)) var session: String
+    @MockedProperty(.getAsyncThrows(MockedServiceError.self)) var receipt: String
 }
 ```
+
+A kind matches the accessor shape: `.get`, `.getSet`, `.getAsync`, `.getAsyncSet`,
+`.getThrows`, `.getThrowsSet`, and `.getAsyncThrows`. On an `@Mockable` protocol the macro
+reads the shape from the requirement, so `var token: String { get async throws }` needs no
+attribute.
 
 ### Naming a peer
 

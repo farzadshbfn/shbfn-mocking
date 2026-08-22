@@ -21,19 +21,19 @@ public enum MockedPropertyKind {
     case getSet
     case getAsync
     case getAsyncSet
-    case throwingGet(Error.Type?)
-    case throwingGetSet(Error.Type?)
+    case getThrows(Error.Type?)
+    case getThrowsSet(Error.Type?)
+    case getAsyncThrows(Error.Type?)
 }
 
+/// A throwing kind reads with or without a failure type: `.getThrows` or `.getThrows(MyError.self)`.
 public extension MockedPropertyKind {
-    static var getThrows: Self { .throwingGet(nil) }
-    static var getThrowsSet: Self { .throwingGetSet(nil) }
-
-    static func getThrows(_ failure: Error.Type) -> Self { .throwingGet(failure) }
-    static func getThrowsSet(_ failure: Error.Type) -> Self { .throwingGetSet(failure) }
+    static var getThrows: Self { .getThrows(nil) }
+    static var getThrowsSet: Self { .getThrowsSet(nil) }
+    static var getAsyncThrows: Self { .getAsyncThrows(nil) }
 }
 
-/// `named:` overrides the generated peer name, so `@MockedProperty(.getSet, named: "x")` gives `$x`.
+/// `named:` overrides the generated peer name, so `@MockedProperty(named: "x", .get)` gives `$x`.
 @attached(peer, names: prefixed(`$`), arbitrary)
 @attached(accessor)
 public macro MockedProperty(named: String? = nil, _ kind: MockedPropertyKind? = nil) =

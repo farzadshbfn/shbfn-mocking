@@ -455,6 +455,8 @@ struct MockedPropertyService {
     @MockedProperty(.getThrowsSet) var secret: String
     @MockedProperty(.getThrows(MockedServiceError.self)) var session: String
     @MockedProperty(.getThrowsSet(MockedServiceError.self)) var credential: String
+    @MockedProperty(.getAsyncThrows) var manifest: String
+    @MockedProperty(.getAsyncThrows(MockedServiceError.self)) var receipt: String
 }
 
 struct MockedMethodService {
@@ -480,6 +482,12 @@ struct NamedPeerService {
     @MockedMethod(named: "loadByID") func load(id: Int) -> String
     @MockedProperty(named: "readableLabel", .get) var label: String
     @MockedProperty(named: "editableTitle") var title: String
+}
+
+@Mockable
+protocol AsyncVault {
+    var token: String { get async throws }
+    var secret: String { get async throws(MockedServiceError) }
 }
 
 @Mockable
@@ -1204,5 +1212,62 @@ struct `Named Peers` {
 
         #expect(sut.state == 3)
         #expect(sut.state2 == "label")
+    }
+}
+
+@Suite
+struct `Async Throwing Properties` {
+    @Test
+    func `protocol get async throws returns the configured value`() async throws {
+        let sut = AsyncVault.Mock().with {
+            $0.$token.get.returns = "value"
+        }
+
+        #expect(try await sut.token == "value")
+        #expect(sut.$token.get.callCount == 1)
+    }
+
+    @Test
+    func `protocol get async throws rethrows the configured failure`() async {
+        let sut = AsyncVault.Mock().with {
+            $0.$token.get.throws = MockedServiceError.unavailable
+        }
+
+        await #expect(throws: MockedServiceError.unavailable) {
+            try await sut.token
+        }
+        #expect(sut.$token.get.callCount == 1)
+    }
+
+    @Test
+    func `typed throws stays typed on an async getter`() async {
+        let sut = AsyncVault.Mock().with {
+            $0.$secret.get.throws = .unavailable
+        }
+
+        await #expect(throws: MockedServiceError.unavailable) {
+            try await sut.secret
+        }
+    }
+
+    @Test
+    func `hand-written getAsyncThrows property throws and returns`() async throws {
+        let sut = MockedPropertyService()
+        sut.$manifest.get.returns = "manifest"
+        sut.$receipt.get.throws = .unavailable
+
+        #expect(try await sut.manifest == "manifest")
+        await #expect(throws: MockedServiceError.unavailable) {
+            try await sut.receipt
+        }
+        #expect(sut.$manifest.get.callCount == 1)
+        #expect(sut.$receipt.get.callCount == 1)
+    }
+
+    @Test
+    func `an unconfigured async throwing getter stays lenient`() async throws {
+        let sut = AsyncVault.Mock()
+
+        #expect(try await sut.token == "")
     }
 }
