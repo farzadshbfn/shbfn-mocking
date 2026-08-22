@@ -49,6 +49,15 @@ public enum Mock {
             }
         }
 
+        /// Swift forbids `set` beside a `get` that is `async` or `throws`, so this kind has no setter.
+        public final class GetAsyncThrows<Failure: Error>: @unchecked Sendable {
+            public let get: AsyncInvocation<Void, Value, Failure>
+
+            public init(subject: String? = nil) {
+                self.get = AsyncInvocation(subject: subject.map { "\($0).get" })
+            }
+        }
+
         public final class GetThrows<Failure: Error>: @unchecked Sendable {
             public let get: SyncInvocation<Void, Value, Failure>
 

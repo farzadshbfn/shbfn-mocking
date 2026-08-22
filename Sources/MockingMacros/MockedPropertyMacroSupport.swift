@@ -18,6 +18,8 @@ enum MockedPropertyMacroSupport {
             return "\(base).GetAsync(\(subjectArg))"
         case .getAsyncSet:
             return "\(base).GetAsyncSet(\(subjectArg))"
+        case let .getAsyncThrows(failure):
+            return "\(base).GetAsyncThrows<\(failure ?? MacroSyntaxSupport.anyError)>(\(subjectArg))"
         case let .getThrows(failure):
             return "\(base).GetThrows<\(failure ?? MacroSyntaxSupport.anyError)>(\(subjectArg))"
         case let .getThrowsSet(failure):
@@ -32,6 +34,8 @@ enum MockedPropertyMacroSupport {
             return call
         case .getAsync, .getAsyncSet:
             return "await \(call)"
+        case .getAsyncThrows:
+            return "try await \(call)"
         case .getThrows, .getThrowsSet:
             return "try \(call)"
         }
@@ -49,6 +53,11 @@ enum MockedPropertyMacroSupport {
             return "get"
         case .getAsync, .getAsyncSet:
             return "get async"
+        case let .getAsyncThrows(failure):
+            if let failure {
+                return "get async throws(\(failure))"
+            }
+            return "get async throws"
         case let .getThrows(failure), let .getThrowsSet(failure):
             if let failure {
                 return "get throws(\(failure))"
@@ -74,6 +83,10 @@ enum MockedPropertyMacroSupport {
             return ".getAsync"
         case .getAsyncSet:
             return ".getAsyncSet"
+        case .getAsyncThrows(nil):
+            return ".getAsyncThrows"
+        case let .getAsyncThrows(failure?):
+            return ".getAsyncThrows(\(failure).self)"
         case .getThrows(nil):
             return ".getThrows"
         case let .getThrows(failure?):
@@ -113,6 +126,8 @@ enum MockedPropertyMacroSupport {
                 if throwsClause != nil { return .getThrowsSet(failure: nil) }
                 return .getSet
             }
+            if isAsync, let typedFailure { return .getAsyncThrows(failure: typedFailure) }
+            if isAsync, throwsClause != nil { return .getAsyncThrows(failure: nil) }
             if isAsync { return .getAsync }
             if let typedFailure { return .getThrows(failure: typedFailure) }
             if throwsClause != nil { return .getThrows(failure: nil) }
@@ -140,6 +155,9 @@ enum MockedPropertyMacroSupport {
            let member = functionCall.calledExpression.as(MemberAccessExprSyntax.self) {
             let failure = functionCall.arguments.first.map { typeNameFromMetatype($0.expression) }
             switch member.declName.baseName.text {
+            case "getAsyncThrows":
+                guard let failure else { throw MockedPropertyKindError.missingFailureType("getAsyncThrows") }
+                return .getAsyncThrows(failure: failure)
             case "getThrows":
                 guard let failure else { throw MockedPropertyKindError.missingFailureType("getThrows") }
                 return .getThrows(failure: failure)
@@ -157,6 +175,7 @@ enum MockedPropertyMacroSupport {
             case "getSet": return .getSet
             case "getAsync": return .getAsync
             case "getAsyncSet": return .getAsyncSet
+            case "getAsyncThrows": return .getAsyncThrows(failure: nil)
             case "getThrows": return .getThrows(failure: nil)
             case "getThrowsSet": return .getThrowsSet(failure: nil)
             default:
@@ -200,6 +219,7 @@ enum ParsedMockedPropertyKind {
     case getSet
     case getAsync
     case getAsyncSet
+    case getAsyncThrows(failure: String?)
     case getThrows(failure: String?)
     case getThrowsSet(failure: String?)
 }

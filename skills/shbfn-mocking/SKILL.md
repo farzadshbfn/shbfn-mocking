@@ -165,7 +165,9 @@ struct MockedPropertyService {
 
 `@MockedMethod` takes no argument. It reads `async` and `throws` from the signature.
 `@MockedProperty` takes a kind: `.get`, `.getSet`, `.getAsync`, `.getAsyncSet`,
-`.getThrows`, `.getThrowsSet`. The two throwing kinds also take a failure type.
+`.getThrows`, `.getThrowsSet`, `.getAsyncThrows`. Each throwing kind also takes a failure
+type, as `.getAsyncThrows(MyError.self)`. `@Mockable` reads the kind from the requirement,
+so `{ get async throws }` needs no attribute.
 
 ### Generics
 
@@ -195,7 +197,7 @@ Pick the variant by shape:
 
 - `Mock.Method<Inputs, Output>.Sync`, `.Async`, `.SyncThrows<Failure>`, `.AsyncThrows<Failure>`
 - `Mock.Property<Value>.Get`, `.GetSet`, `.GetAsync`, `.GetAsyncSet`, `.GetThrows<Failure>`,
-  `.GetThrowsSet<Failure>`
+  `.GetThrowsSet<Failure>`, `.GetAsyncThrows<Failure>`
 
 Invoke it with `result(_:)`, and drop the argument when `Inputs` is `Void`. The
 configuration and verification surface is the same.

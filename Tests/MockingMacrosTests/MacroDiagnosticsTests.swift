@@ -445,5 +445,43 @@ struct `Macro Diagnostics` {
             }
         )
     }
+
+    @Test func asyncThrowsWithoutFailureTypeDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                struct Service {
+                    @MockedProperty(.getAsyncThrows()) var value: String
+                }
+                """
+            },
+            // The peer and accessor roles of @MockedProperty each parse the kind, so the error fires twice.
+            diagnostics: [
+                DiagnosticSpec(
+                    message: """
+                    @MockedProperty(.getAsyncThrows) requires a failure type, \
+                    e.g. .getAsyncThrows(MyError.self).
+                    """,
+                    line: 2,
+                    column: 5
+                ),
+                DiagnosticSpec(
+                    message: """
+                    @MockedProperty(.getAsyncThrows) requires a failure type, \
+                    e.g. .getAsyncThrows(MyError.self).
+                    """,
+                    line: 2,
+                    column: 5
+                ),
+            ],
+            expansion: {
+                """
+                struct Service {
+                    var value: String
+                }
+                """
+            }
+        )
+    }
 }
 #endif

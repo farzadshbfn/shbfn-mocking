@@ -23,14 +23,17 @@ public enum MockedPropertyKind {
     case getAsyncSet
     case throwingGet(Error.Type?)
     case throwingGetSet(Error.Type?)
+    case throwingAsyncGet(Error.Type?)
 }
 
 public extension MockedPropertyKind {
     static var getThrows: Self { .throwingGet(nil) }
     static var getThrowsSet: Self { .throwingGetSet(nil) }
+    static var getAsyncThrows: Self { .throwingAsyncGet(nil) }
 
     static func getThrows(_ failure: Error.Type) -> Self { .throwingGet(failure) }
     static func getThrowsSet(_ failure: Error.Type) -> Self { .throwingGetSet(failure) }
+    static func getAsyncThrows(_ failure: Error.Type) -> Self { .throwingAsyncGet(failure) }
 }
 
 /// `named:` overrides the generated peer name, so `@MockedProperty(.getSet, named: "x")` gives `$x`.
