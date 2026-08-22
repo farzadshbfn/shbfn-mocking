@@ -57,25 +57,43 @@ enum MockedPropertyMacroSupport {
         }
     }
 
-    static func mockedPropertyAttribute(for kind: ParsedMockedPropertyKind) -> String {
+    static func mockedPropertyAttribute(for kind: ParsedMockedPropertyKind, named: String? = nil) -> String {
+        let arguments = [named.map { "named: \"\($0)\"" }, kindArgument(for: kind)].compactMap { $0 }
+        guard !arguments.isEmpty else { return "@MockedProperty" }
+        return "@MockedProperty(\(arguments.joined(separator: ", ")))"
+    }
+
+    /// `.getSet` is the default kind, so it needs no argument.
+    private static func kindArgument(for kind: ParsedMockedPropertyKind) -> String? {
         switch kind {
         case .getSet:
-            return "@MockedProperty"
+            return nil
         case .get:
-            return "@MockedProperty(.get)"
+            return ".get"
         case .getAsync:
-            return "@MockedProperty(.getAsync)"
+            return ".getAsync"
         case .getAsyncSet:
-            return "@MockedProperty(.getAsyncSet)"
+            return ".getAsyncSet"
         case .getThrows(nil):
-            return "@MockedProperty(.getThrows)"
+            return ".getThrows"
         case let .getThrows(failure?):
-            return "@MockedProperty(.getThrows(\(failure).self))"
+            return ".getThrows(\(failure).self)"
         case .getThrowsSet(nil):
-            return "@MockedProperty(.getThrowsSet)"
+            return ".getThrowsSet"
         case let .getThrowsSet(failure?):
-            return "@MockedProperty(.getThrowsSet(\(failure).self))"
+            return ".getThrowsSet(\(failure).self)"
         }
+    }
+
+    /// Kind the user spelled out, as the unlabeled argument. Nil when they left it to inference.
+    static func explicitPropertyKind(from attribute: AttributeSyntax) throws -> ParsedMockedPropertyKind? {
+        guard
+            let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
+            let expression = arguments.first(where: { $0.label == nil })?.expression
+        else {
+            return nil
+        }
+        return try parseMockedPropertyKindExpression(expression)
     }
 
     static func inferredPropertyKind(
@@ -108,8 +126,9 @@ enum MockedPropertyMacroSupport {
         property: VariableDeclSyntax,
         binding: PatternBindingSyntax
     ) throws -> ParsedMockedPropertyKind {
+        // The kind is the unlabeled argument, so `@MockedProperty(named: "x")` still infers it.
         guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
-              let expression = arguments.first?.expression else {
+              let expression = arguments.first(where: { $0.label == nil })?.expression else {
             return defaultMockedPropertyKind(for: property, binding: binding)
         }
         return try parseMockedPropertyKindExpression(expression)

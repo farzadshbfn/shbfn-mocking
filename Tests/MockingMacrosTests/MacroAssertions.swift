@@ -24,6 +24,7 @@ func assertMacro(
     of originalSource: () throws -> String,
     diagnostics: [DiagnosticSpec] = [],
     expansion expandedSource: (() -> String)? = nil,
+    fixedSource: (() -> String)? = nil,
     sourceLocation: Testing.SourceLocation = #_sourceLocation
 ) rethrows {
     let original = try originalSource()
@@ -33,6 +34,7 @@ func assertMacro(
         expandedSource: expandedSource?() ?? original,
         diagnostics: diagnostics,
         macroSpecs: specs,
+        fixedSource: fixedSource?(),
         failureHandler: { Issue.record(Comment(rawValue: $0.message), sourceLocation: sourceLocation) }
     )
 }

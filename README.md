@@ -182,6 +182,29 @@ struct MockedPropertyService {
 }
 ```
 
+### Naming a peer
+
+A peer takes the member's name, so two members can claim one peer name. Use `named:` to
+give one of them its own peer. Your own declaration stays as it is. The collision
+diagnostic carries a fix-it that adds the attribute for you.
+
+```swift
+@Mockable
+protocol Worker {
+    func run()
+    @MockedMethod(named: "runForce")
+    func run(force: Bool)
+}
+
+let mock = Worker.Mock()
+mock.run(force: true)
+#expect(mock.$runForce.callCount == 1)
+```
+
+`named:` takes a string literal. It works on `@MockedMethod` and on `@MockedProperty`, both
+on a hand-written type and on a member of an `@Mockable` protocol. The member's own
+attribute always wins over the generated one.
+
 ## Waiting on unstructured concurrency
 
 `Task.sleep`, `Thread.sleep`, `Task.yield()` loops, and polling make tests flake. Prefer

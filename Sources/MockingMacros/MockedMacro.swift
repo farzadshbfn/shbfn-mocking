@@ -17,8 +17,12 @@ public struct MockedMethodMacro: PeerMacro, BodyMacro {
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
             throw MockedMacroError.unsupportedMethodDeclaration
         }
+        // Validate first, so a bad `named:` is reported here even inside a protocol.
+        let custom = try MacroSyntaxSupport.customPeerName(from: node)
+        // Inside a protocol the peer belongs to the generated Mock class, not to the protocol.
+        guard !MacroSyntaxSupport.isInsideProtocol(context) else { return [] }
 
-        let peerName = MacroSyntaxSupport.mockPeerName(for: function.name.text)
+        let peerName = MacroSyntaxSupport.mockPeerName(for: custom ?? function.name.text)
         let outputType = MacroSyntaxSupport.outputType(from: function)
         let factory = MacroSyntaxSupport.methodFactory(for: function, outputType: outputType)
         return try MacroSyntaxSupport.mockPeerDeclarations(
@@ -37,8 +41,10 @@ public struct MockedMethodMacro: PeerMacro, BodyMacro {
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
             return []
         }
+        let custom = try MacroSyntaxSupport.customPeerName(from: node)
+        guard !MacroSyntaxSupport.isInsideProtocol(context) else { return [] }
 
-        let peerName = MacroSyntaxSupport.mockPeerName(for: function.name.text)
+        let peerName = MacroSyntaxSupport.mockPeerName(for: custom ?? function.name.text)
         return MacroSyntaxSupport.methodBodyStatements(for: function, peerName: peerName)
     }
 }
@@ -58,12 +64,15 @@ public struct MockedPropertyMacro: PeerMacro, AccessorMacro {
             throw MockedMacroError.unsupportedPropertyDeclaration
         }
 
+        let custom = try MacroSyntaxSupport.customPeerName(from: node)
+        guard !MacroSyntaxSupport.isInsideProtocol(context) else { return [] }
+
         let kind = try MockedPropertyMacroSupport.parseMockedPropertyKind(
             from: node,
             property: property,
             binding: binding
         )
-        let peerName = MacroSyntaxSupport.mockPeerName(for: identifier)
+        let peerName = MacroSyntaxSupport.mockPeerName(for: custom ?? identifier)
         let valueType = MacroSyntaxSupport.mockTypeName(from: typeAnnotation)
         let subject = MacroSyntaxSupport.propertySubject(from: property, identifier: identifier)
         let factory = MockedPropertyMacroSupport.propertyFactory(
@@ -92,12 +101,15 @@ public struct MockedPropertyMacro: PeerMacro, AccessorMacro {
             return []
         }
 
+        let custom = try MacroSyntaxSupport.customPeerName(from: node)
+        guard !MacroSyntaxSupport.isInsideProtocol(context) else { return [] }
+
         let kind = try MockedPropertyMacroSupport.parseMockedPropertyKind(
             from: node,
             property: property,
             binding: binding
         )
-        let peerName = MacroSyntaxSupport.mockPeerName(for: identifier)
+        let peerName = MacroSyntaxSupport.mockPeerName(for: custom ?? identifier)
         let getCall = MockedPropertyMacroSupport.propertyGetCall(for: kind, peerName: peerName)
         let getKeyword = MockedPropertyMacroSupport.getterAccessorKeyword(for: kind)
 
@@ -123,6 +135,8 @@ public struct MockedPropertyMacro: PeerMacro, AccessorMacro {
 enum MockedMacroError: Error, CustomStringConvertible {
     case unsupportedMethodDeclaration
     case unsupportedPropertyDeclaration
+    case peerNameIsNotALiteral(String)
+    case peerNameIsNotAnIdentifier(String)
 
     var description: String {
         switch self {
@@ -130,6 +144,10 @@ enum MockedMacroError: Error, CustomStringConvertible {
             "@MockedMethod can only be applied to functions."
         case .unsupportedPropertyDeclaration:
             "@MockedProperty can only be applied to properties."
+        case let .peerNameIsNotALiteral(argument):
+            "'named' must be a string literal, not '\(argument)'."
+        case let .peerNameIsNotAnIdentifier(name):
+            "'named' must be a Swift identifier, because the peer becomes '$\(name)'."
         }
     }
 }

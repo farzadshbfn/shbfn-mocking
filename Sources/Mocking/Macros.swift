@@ -8,9 +8,12 @@
 public macro Mockable() = #externalMacro(module: "MockingMacros", type: "MockableMacro")
 
 #if MOCKING
-@attached(peer, names: prefixed(`$`))
+/// `named:` overrides the generated peer name, so `@MockedMethod(named: "run2")` gives `$run2`.
+/// The name must be a string literal, because the macro reads it at compile time.
+@attached(peer, names: prefixed(`$`), arbitrary)
 @attached(body)
-public macro MockedMethod() = #externalMacro(module: "MockingMacros", type: "MockedMethodMacro")
+public macro MockedMethod(named: String? = nil) =
+    #externalMacro(module: "MockingMacros", type: "MockedMethodMacro")
 
 /// Selects the mock runtime used by `@MockedProperty`.
 public enum MockedPropertyKind {
@@ -30,8 +33,9 @@ public extension MockedPropertyKind {
     static func getThrowsSet(_ failure: Error.Type) -> Self { .throwingGetSet(failure) }
 }
 
-@attached(peer, names: prefixed(`$`))
+/// `named:` overrides the generated peer name, so `@MockedProperty(.getSet, named: "x")` gives `$x`.
+@attached(peer, names: prefixed(`$`), arbitrary)
 @attached(accessor)
-public macro MockedProperty(_ kind: MockedPropertyKind? = nil) =
+public macro MockedProperty(named: String? = nil, _ kind: MockedPropertyKind? = nil) =
     #externalMacro(module: "MockingMacros", type: "MockedPropertyMacro")
 #endif

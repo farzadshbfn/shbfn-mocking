@@ -258,6 +258,66 @@ struct `Mockable Macro Protocol Edge Cases` {
             """
         }
     }
+
+    // A member's own @MockedMethod wins, so an overloaded protocol keeps its shape and still mocks.
+    @Test func namedResolvesAnOverloadedMethod() {
+        assertMacro {
+            """
+            @Mockable
+            protocol Worker {
+                func run()
+                @MockedMethod(named: "runForce") func run(force: Bool)
+            }
+            """
+        } expansion: {
+            """
+            protocol Worker {
+                func run()
+                func run(force: Bool)
+            }
+
+            #if MOCKING
+            final class WorkerMock: Worker, Sendable, MockWithable {
+                func run() {
+                    return $run.result()
+                }
+
+                #if MOCKING
+                nonisolated let $run = Mocking.Mock.Method<Void, Void>.Sync(subject: "run()")
+                #endif
+                func run(force: Bool) {
+                    return $runForce.result(force)
+                }
+
+                #if MOCKING
+                nonisolated let $runForce = Mocking.Mock.Method<Bool, Void>.Sync(subject: "run(force:)")
+                #endif
+
+                init() {
+                }
+
+                var instance: WorkerMock {
+                    self
+                }
+            }
+            #endif
+
+            extension Worker {
+                #if MOCKING
+                static var mock: WorkerMock {
+                    WorkerMock()
+                }
+                #endif
+            }
+
+            extension Worker {
+                #if MOCKING
+                typealias Mock = WorkerMock
+                #endif
+            }
+            """
+        }
+    }
 }
 // swiftlint:enable function_body_length line_length
 #endif

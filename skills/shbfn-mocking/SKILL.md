@@ -91,6 +91,34 @@ Pick the shape by what you need:
 
 Call the public API (`fetch`, `token`). Configure and inspect through the `$` peer.
 
+A peer takes its name from the member, so two members claim one peer name. `func run()` and
+`func run(force: Bool)` both claim `$run`, and the macro reports a diagnostic. Give one of
+them its own peer name with `named:`. Keep your own declaration as it is. The diagnostic
+carries a fix-it that adds the attribute for you.
+
+```swift
+@Mockable
+protocol Worker {
+    func run()
+    @MockedMethod(named: "runForce")
+    func run(force: Bool)
+}
+
+mock.run(force: true)
+#expect(mock.$runForce.callCount == 1)
+```
+
+`named:` works on `@MockedMethod` and on `@MockedProperty`, and it takes a string literal.
+On `@MockedProperty` it comes first, before the kind: `@MockedProperty(named: "x", .get)`.
+Write the attribute on a member of an `@Mockable` protocol, or on a member of a type you
+write yourself. Inside an `@Mockable` protocol the member's own attribute always wins.
+
+An `@Mockable` struct takes no such attribute, and the macro reports a diagnostic. Two
+stored properties cannot share a name, so their peers never collide.
+
+A static member and an instance member may share a name, because their peers do not
+collide.
+
 ### Structs
 
 A struct gets the same grammar as a protocol: `Type.Mock()`, `$` peers, `init(mock:)`,
@@ -222,8 +250,8 @@ Only one knob is active at a time. When you set one, the others clear.
 - Properties split into `$name.get` and `$name.set`. Read-only properties have `get` only.
 - The mock records setter calls automatically. Use `$name.set.onCall` only for custom
   setter behavior.
-- A method that returns `Void` needs no configuration, unless it also takes no parameters.
-  `func fetch() async` traps when unconfigured, so give it `.onCall = { _ in }`.
+- A method that returns `Void` needs no configuration. This includes a method that also
+  takes no parameters, such as `func fetch() async`.
 
 #### `isExclusive`
 

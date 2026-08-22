@@ -469,6 +469,26 @@ struct MockedMultiArgService {
 }
 
 @Mockable
+protocol NamedWorker {
+    func run()
+    @MockedMethod(named: "runForce") func run(force: Bool)
+    var state: Int { get }
+    @MockedProperty(named: "stateLabel") var state2: String { get }
+}
+
+struct NamedPeerService {
+    @MockedMethod(named: "loadByID") func load(id: Int) -> String
+    @MockedProperty(named: "readableLabel", .get) var label: String
+    @MockedProperty(named: "editableTitle") var title: String
+}
+
+@Mockable
+protocol Beacon {
+    static func ping() -> String
+    func ping() -> String
+}
+
+@Mockable
 protocol CatalogAPI {
     static var prefix: String { get }
     static func item(id: Int) -> String
@@ -726,6 +746,19 @@ struct `Macros` {
         #expect(service.$fetch.callCount == 1)
         #expect(service.$fetch.args?.api == "khiar")
         #expect(service.$fetch.args?.id == 7)
+    }
+
+    @Test
+    func `a static member and an instance member may share a name`() {
+        BeaconMock.$ping.returns = "static"
+        let sut = Beacon.Mock().with {
+            $0.$ping.returns = "instance"
+        }
+
+        #expect(BeaconMock.ping() == "static")
+        #expect(sut.ping() == "instance")
+        #expect(BeaconMock.$ping.callCount == 1)
+        #expect(sut.$ping.callCount == 1)
     }
 
     @Test
@@ -995,5 +1028,181 @@ struct `Mockable Generic Methods` {
         let result: Int = try await mock.send(1)
         #expect(result == 99)
         #expect(mock.$send.args as? Int == 1)
+    }
+}
+
+@Mockable
+protocol VoidWorker {
+    func run()
+    func runForced(force: Bool)
+    func save() throws
+    func fetch() async
+    func store() async throws
+}
+
+@Suite
+struct `Void Output Leniency` {
+    @Test
+    func `sync zero-argument Void method is lenient`() {
+        let mock = VoidWorker.Mock()
+
+        mock.run()
+
+        #expect(mock.$run.callCount == 1)
+    }
+
+    @Test
+    func `sync Void method with an argument is lenient`() {
+        let mock = VoidWorker.Mock()
+
+        mock.runForced(force: true)
+
+        #expect(mock.$runForced.callCount == 1)
+        #expect(mock.$runForced.args == true)
+    }
+
+    @Test
+    func `throwing sync zero-argument Void method is lenient`() throws {
+        let mock = VoidWorker.Mock()
+
+        try mock.save()
+
+        #expect(mock.$save.callCount == 1)
+    }
+
+    @Test
+    func `async zero-argument Void method is lenient`() async {
+        let mock = VoidWorker.Mock()
+
+        await mock.fetch()
+
+        #expect(mock.$fetch.callCount == 1)
+    }
+
+    @Test
+    func `throwing async zero-argument Void method is lenient`() async throws {
+        let mock = VoidWorker.Mock()
+
+        try await mock.store()
+
+        #expect(mock.$store.callCount == 1)
+    }
+
+    @Test
+    func `standalone sync Void method double is lenient`() {
+        let mock = Mock.Method<Void, Void>.Sync()
+
+        mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `standalone async Void method double is lenient`() async {
+        let mock = Mock.Method<Void, Void>.Async()
+
+        await mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `standalone typed-throws sync Void method double is lenient`() throws {
+        let mock = Mock.Method<Void, Void>.SyncThrows<MockedServiceError>()
+
+        try mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `standalone typed-throws async Void method double is lenient`() async throws {
+        let mock = Mock.Method<Void, Void>.AsyncThrows<MockedServiceError>()
+
+        try await mock.result()
+
+        #expect(mock.callCount == 1)
+    }
+
+    @Test
+    func `exclusive sync Void method traps when not configured`() async {
+        await #expect(processExitsWith: .failure) {
+            let mock = Mock.Method<Void, Void>.Sync()
+            mock.isExclusive = true
+            mock.result()
+        }
+    }
+
+    @Test
+    func `exclusive async Void method traps when not configured`() async {
+        await #expect(processExitsWith: .failure) {
+            let mock = Mock.Method<Void, Void>.Async()
+            mock.isExclusive = true
+            await mock.result()
+        }
+    }
+
+    @Test
+    func `exclusive Void protocol method traps when not configured`() async {
+        await #expect(processExitsWith: .failure) {
+            let mock = VoidWorker.Mock()
+            mock.$fetch.isExclusive = true
+            await mock.fetch()
+        }
+    }
+}
+
+@Suite
+struct `Named Peers` {
+    @Test
+    func `named overrides the peer of a hand-written method`() {
+        let sut = NamedPeerService()
+        sut.$loadByID.returns = "ok"
+
+        #expect(sut.load(id: 7) == "ok")
+        #expect(sut.$loadByID.callCount == 1)
+        #expect(sut.$loadByID.args == 7)
+    }
+
+    @Test
+    func `named overrides the peer of a hand-written property`() {
+        let sut = NamedPeerService()
+        sut.$readableLabel.get.returns = "label"
+
+        #expect(sut.label == "label")
+        #expect(sut.$readableLabel.get.callCount == 1)
+    }
+
+    @Test
+    func `named alone keeps the inferred property kind`() {
+        var sut = NamedPeerService()
+        sut.$editableTitle.get.returns = "title"
+
+        #expect(sut.title == "title")
+        sut.title = "next"
+        #expect(sut.$editableTitle.set.args == "next")
+    }
+
+    @Test
+    func `named resolves an overloaded protocol method`() {
+        let sut = NamedWorker.Mock()
+
+        sut.run()
+        sut.run(force: true)
+
+        #expect(sut.$run.callCount == 1)
+        #expect(sut.$runForce.callCount == 1)
+        #expect(sut.$runForce.args == true)
+    }
+
+    @Test
+    func `named on a protocol property wins over the generated name`() {
+        let sut = NamedWorker.Mock().with {
+            $0.$state.get.returns = 3
+            $0.$stateLabel.get.returns = "label"
+        }
+
+        #expect(sut.state == 3)
+        #expect(sut.state2 == "label")
     }
 }
