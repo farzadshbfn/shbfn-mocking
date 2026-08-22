@@ -120,6 +120,59 @@ enum MacroSyntaxSupport {
         "$\(identifier)"
     }
 
+    /// Peer name the user asked for, as `@MockedMethod(named: "run2")`. Nil when they wrote none.
+    /// A non-literal argument throws, because the macro must read the name at compile time.
+    static func customPeerName(from attribute: AttributeSyntax) throws -> String? {
+        guard
+            let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
+            let argument = arguments.first(where: { $0.label?.text == "named" })
+        else {
+            return nil
+        }
+        guard let name = stringLiteralValue(argument.expression) else {
+            throw MockedMacroError.peerNameIsNotALiteral(argument.expression.trimmedDescription)
+        }
+        guard isIdentifier(name) else {
+            throw MockedMacroError.peerNameIsNotAnIdentifier(name)
+        }
+        return name
+    }
+
+    /// `@MockedMethod` or `@MockedProperty` written by the user on this member.
+    static func mockedAttribute(on attributes: AttributeListSyntax) -> AttributeSyntax? {
+        for attribute in attributes {
+            guard let attribute = attribute.as(AttributeSyntax.self) else { continue }
+            let name = attribute.attributeName.trimmedDescription
+            if name == "MockedMethod" || name == "MockedProperty" {
+                return attribute
+            }
+        }
+        return nil
+    }
+
+    /// True when the declaration sits directly inside a protocol. `@Mockable` reads the member's
+    /// own `@MockedMethod` there, so the attribute must add nothing of its own.
+    static func isInsideProtocol(_ context: some MacroExpansionContext) -> Bool {
+        context.lexicalContext.first?.is(ProtocolDeclSyntax.self) ?? false
+    }
+
+    static func stringLiteralValue(_ expression: ExprSyntax) -> String? {
+        guard let literal = expression.as(StringLiteralExprSyntax.self) else { return nil }
+        var text = ""
+        for segment in literal.segments {
+            guard case let .stringSegment(piece) = segment else { return nil }
+            text += piece.content.text
+        }
+        return text
+    }
+
+    /// A generated peer becomes `$name`, so the name must be a plain Swift identifier.
+    static func isIdentifier(_ name: String) -> Bool {
+        guard let first = name.first else { return false }
+        guard first == "_" || first.isLetter else { return false }
+        return name.allSatisfy { $0 == "_" || $0.isLetter || $0.isNumber }
+    }
+
     static func isStatic(_ modifiers: DeclModifierListSyntax) -> Bool {
         modifiers.contains { $0.name.text == "static" }
     }

@@ -91,9 +91,32 @@ Pick the shape by what you need:
 
 Call the public API (`fetch`, `token`). Configure and inspect through the `$` peer.
 
-A peer takes its name from the member, so two members cannot share a name. `func run()` and
-`func run(force: Bool)` both claim `$run`, and the macro reports a diagnostic. Rename one
-member. A static member and an instance member may share a name, because their peers do not
+A peer takes its name from the member, so two members claim one peer name. `func run()` and
+`func run(force: Bool)` both claim `$run`, and the macro reports a diagnostic. Give one of
+them its own peer name with `named:`. Keep your own declaration as it is. The diagnostic
+carries a fix-it that adds the attribute for you.
+
+```swift
+@Mockable
+protocol Worker {
+    func run()
+    @MockedMethod(named: "runForce")
+    func run(force: Bool)
+}
+
+mock.run(force: true)
+#expect(mock.$runForce.callCount == 1)
+```
+
+`named:` works on `@MockedMethod` and on `@MockedProperty`, and it takes a string literal.
+On `@MockedProperty` it comes first, before the kind: `@MockedProperty(named: "x", .get)`.
+Write the attribute on a member of an `@Mockable` protocol, or on a member of a type you
+write yourself. Inside an `@Mockable` protocol the member's own attribute always wins.
+
+An `@Mockable` struct takes no such attribute, and the macro reports a diagnostic. Two
+stored properties cannot share a name, so their peers never collide.
+
+A static member and an instance member may share a name, because their peers do not
 collide.
 
 ### Structs

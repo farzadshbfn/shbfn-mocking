@@ -3,6 +3,7 @@
 //  See LICENSE in the project root for full details.
 //
 
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
@@ -20,7 +21,7 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
 
         if let protocolDecl = declaration.as(ProtocolDeclSyntax.self) {
             // The peer role reports this and emits no class; don't dangle an alias to a missing type.
-            guard duplicatePeerName(in: protocolDecl) == nil else { return [] }
+            guard peerNameCollision(in: protocolDecl) == nil else { return [] }
 
             if MacroSyntaxSupport.hasAssociatedTypes(protocolDecl) {
                 // The peer role reports this and emits no class; don't dangle an alias to a missing type.
@@ -58,11 +59,12 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         }
 
         // Every peer is `$name`, so two members with one name would declare `$name` twice.
-        if let duplicate = duplicatePeerName(in: protocolDecl) {
-            throw MockableMacroError.duplicatePeerName(duplicate)
+        if let collision = peerNameCollision(in: protocolDecl) {
+            context.diagnose(collision.diagnostic)
+            return []
         }
 
-        let members = peerMacroMembers(
+        let members = try peerMacroMembers(
             from: protocolDecl,
             mockClassName: mockClassName,
             access: access,
@@ -94,32 +96,39 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         }
     }
 
-    /// First member name that two peers would claim. Every peer is `$name`, so two members with one
+    /// Two members that would claim one peer name. Every peer is `$name`, so two members with one
     /// name produce two `let $name` declarations. A static and an instance member may share a name,
     /// because `static let $run` and `nonisolated let $run` can both live in the class.
-    private static func duplicatePeerName(in protocolDecl: ProtocolDeclSyntax) -> String? {
+    private static func peerNameCollision(in protocolDecl: ProtocolDeclSyntax) -> PeerNameCollision? {
         var seen: Set<PeerNameKey> = []
         for member in protocolDecl.memberBlock.members {
             let key: PeerNameKey?
             if let function = member.decl.as(FunctionDeclSyntax.self) {
                 key = PeerNameKey(
-                    name: function.name.text,
+                    name: peerName(of: function.attributes, default: function.name.text),
                     isStatic: MacroSyntaxSupport.isStatic(function.modifiers)
                 )
             } else if let property = member.decl.as(VariableDeclSyntax.self),
                       let identifier = property.bindings.first?.pattern
                           .as(IdentifierPatternSyntax.self)?.identifier.text {
                 key = PeerNameKey(
-                    name: identifier,
+                    name: peerName(of: property.attributes, default: identifier),
                     isStatic: MacroSyntaxSupport.isStatic(property.modifiers)
                 )
             } else {
                 key = nil
             }
             guard let key else { continue }
-            guard seen.insert(key).inserted else { return key.name }
+            guard seen.insert(key).inserted else {
+                return PeerNameCollision(name: key.name, member: member.decl)
+            }
         }
         return nil
+    }
+
+    private static func peerName(of attributes: AttributeListSyntax, default identifier: String) -> String {
+        guard let written = MacroSyntaxSupport.mockedAttribute(on: attributes) else { return identifier }
+        return ((try? MacroSyntaxSupport.customPeerName(from: written)) ?? nil) ?? identifier
     }
 
     private static func mockAccessorExtension(
@@ -180,6 +189,10 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         guard !properties.isEmpty else {
             throw MockableMacroError.structHasNoMockableProperties
         }
+        // A struct takes its peers from the stored properties, which already carry unique names.
+        if let attributed = memberWithMockedAttribute(structDecl.memberBlock) {
+            throw MockableMacroError.mockedAttributeOnStructMember(attributed)
+        }
         guard !declaresNestedMockType(structDecl.memberBlock) else {
             throw MockableMacroError.witnessMockCollision
         }
@@ -239,14 +252,17 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         mockClassName: String,
         access: String,
         bodyIndentLevel: Int
-    ) -> [String] {
+    ) throws -> [String] {
         let memberIndent = MacroSyntaxSupport.indent(level: bodyIndentLevel)
         var members: [String] = []
 
         for member in protocolDecl.memberBlock.members {
             if let function = member.decl.as(FunctionDeclSyntax.self) {
                 let signature = MacroSyntaxSupport.functionSignature(from: function)
-                members.append("\(memberIndent)@MockedMethod\n\(memberIndent)\(access)\(signature)")
+                // The member's own `@MockedMethod` wins, so its `named:` reaches the generated peer.
+                let written = MacroSyntaxSupport.mockedAttribute(on: function.attributes)
+                let attribute = written?.trimmedDescription ?? "@MockedMethod"
+                members.append("\(memberIndent)\(attribute)\n\(memberIndent)\(access)\(signature)")
             }
 
             if let property = member.decl.as(VariableDeclSyntax.self),
@@ -254,8 +270,14 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
                let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                let typeAnnotation = binding.typeAnnotation?.type {
                 let valueType = MacroSyntaxSupport.typeName(from: typeAnnotation)
-                let kind = MockedPropertyMacroSupport.inferredPropertyKind(for: property, binding: binding)
-                let attribute = MockedPropertyMacroSupport.mockedPropertyAttribute(for: kind)
+                let written = MacroSyntaxSupport.mockedAttribute(on: property.attributes)
+                // Keep inferring the kind from the requirement when the member states only a name.
+                let kind = try written.flatMap { try MockedPropertyMacroSupport.explicitPropertyKind(from: $0) }
+                    ?? MockedPropertyMacroSupport.inferredPropertyKind(for: property, binding: binding)
+                let attribute = MockedPropertyMacroSupport.mockedPropertyAttribute(
+                    for: kind,
+                    named: try written.flatMap { try MacroSyntaxSupport.customPeerName(from: $0) }
+                )
                 let staticKeyword = MacroSyntaxSupport.staticKeyword(property.modifiers)
                 let declaration = "\(access)\(staticKeyword)var \(identifier): \(valueType)"
                 members.append("\(memberIndent)\(attribute)\n\(memberIndent)\(declaration)")
@@ -287,6 +309,22 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
                 access: MacroSyntaxSupport.accessModifier(from: property.modifiers)
             )
         }
+    }
+
+    /// Name of the first stored property that carries `@MockedMethod` or `@MockedProperty`.
+    private static func memberWithMockedAttribute(_ memberBlock: MemberBlockSyntax) -> String? {
+        for member in memberBlock.members {
+            guard
+                let property = member.decl.as(VariableDeclSyntax.self),
+                MacroSyntaxSupport.mockedAttribute(on: property.attributes) != nil,
+                let identifier = property.bindings.first?.pattern
+                    .as(IdentifierPatternSyntax.self)?.identifier.text
+            else {
+                continue
+            }
+            return identifier
+        }
+        return nil
     }
 
     private static func declaresNestedMockType(_ memberBlock: MemberBlockSyntax) -> Bool {
@@ -322,7 +360,7 @@ enum MockableMacroError: Error, CustomStringConvertible {
     case staticRequirementInGenericProtocol
     case witnessMockCollision
     case unsupportedClosureParameter
-    case duplicatePeerName(String)
+    case mockedAttributeOnStructMember(String)
 
     var description: String {
         switch self {
@@ -336,10 +374,11 @@ enum MockableMacroError: Error, CustomStringConvertible {
             "@Mockable cannot synthesize a mock: 'Mock' is already declared. Rename the nested type."
         case .unsupportedClosureParameter:
             "@Mockable does not support 'inout' or variadic parameters in closure properties."
-        case .duplicatePeerName(let name):
+        case let .mockedAttributeOnStructMember(name):
             """
-            @Mockable cannot mock two members named '\(name)'. Both would declare the peer '$\(name)'. \
-            Rename one member.
+            @Mockable does not support @MockedMethod or @MockedProperty on the struct member \
+            '\(name)'. Remove the attribute. Two stored properties cannot share a name, so their \
+            peers never collide.
             """
         }
     }
@@ -349,4 +388,104 @@ enum MockableMacroError: Error, CustomStringConvertible {
 private struct PeerNameKey: Hashable {
     let name: String
     let isStatic: Bool
+}
+
+/// Two members that claim one peer name, and the second of them. The fix-it names that one.
+private struct PeerNameCollision {
+    let name: String
+    let member: DeclSyntax
+
+    var diagnostic: Diagnostic {
+        Diagnostic(
+            node: member,
+            message: MockingDiagnostic(
+                id: "duplicatePeerName",
+                message: """
+                @Mockable cannot mock two members named '\(name)'. Both would declare the peer \
+                '$\(name)'. Give one of them its own peer name with 'named:'. Keep your own \
+                declaration as it is.
+                """
+            ),
+            fixIts: fixIts
+        )
+    }
+
+    private var fixIts: [FixIt] {
+        guard let attributed = memberWithPeerName else { return [] }
+        return [
+            FixIt(
+                message: MockingFixIt(
+                    id: "addPeerName",
+                    message: "Add \(attributeName)(named: \"\(suggestedName)\")"
+                ),
+                changes: [.replace(oldNode: Syntax(member), newNode: Syntax(attributed))]
+            ),
+        ]
+    }
+
+    private var attributeName: String {
+        member.is(FunctionDeclSyntax.self) ? "@MockedMethod" : "@MockedProperty"
+    }
+
+    /// The member's own name, which is not always the peer name it claims.
+    private var memberName: String {
+        if let function = member.as(FunctionDeclSyntax.self) { return function.name.text }
+        if let property = member.as(VariableDeclSyntax.self) {
+            return property.bindings.first?.pattern
+                .as(IdentifierPatternSyntax.self)?.identifier.text ?? name
+        }
+        return name
+    }
+
+    /// `run(force:)` suggests `runForce`, so the peer still reads like the member it stands for.
+    private var suggestedName: String {
+        guard let function = member.as(FunctionDeclSyntax.self) else { return "\(memberName)Peer" }
+        let labels = function.signature.parameterClause.parameters.compactMap { parameter -> String? in
+            let label = parameter.firstName.text
+            return label == "_" ? parameter.secondName?.text : label
+        }
+        guard !labels.isEmpty else { return "\(memberName)Peer" }
+        return memberName + labels.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
+    }
+
+    private var memberWithPeerName: DeclSyntax? {
+        let attribute = AttributeSyntax(
+            attributeName: TypeSyntax(stringLiteral: String(attributeName.dropFirst())),
+            leftParen: .leftParenToken(),
+            arguments: .argumentList([
+                LabeledExprSyntax(
+                    label: .identifier("named"),
+                    colon: .colonToken(trailingTrivia: .space),
+                    expression: ExprSyntax(literal: suggestedName)
+                ),
+            ]),
+            rightParen: .rightParenToken()
+        )
+        // The member keeps its own leading newline and indent, which now separate it from the attribute.
+        .with(\.leadingTrivia, member.leadingTrivia)
+
+        if var function = member.as(FunctionDeclSyntax.self) {
+            function.attributes = AttributeListSyntax([.attribute(attribute)] + function.attributes)
+            return DeclSyntax(function)
+        }
+        if var property = member.as(VariableDeclSyntax.self) {
+            property.attributes = AttributeListSyntax([.attribute(attribute)] + property.attributes)
+            return DeclSyntax(property)
+        }
+        return nil
+    }
+
+}
+
+private struct MockingDiagnostic: DiagnosticMessage {
+    let id: String
+    let message: String
+    var severity: DiagnosticSeverity { .error }
+    var diagnosticID: MessageID { MessageID(domain: "Mocking", id: id) }
+}
+
+private struct MockingFixIt: FixItMessage {
+    let id: String
+    let message: String
+    var fixItID: MessageID { MessageID(domain: "Mocking", id: id) }
 }

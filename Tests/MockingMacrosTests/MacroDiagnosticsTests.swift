@@ -231,17 +231,29 @@ struct `Macro Diagnostics` {
             diagnostics: [
                 DiagnosticSpec(
                     message: """
-                    @Mockable cannot mock two members named 'run'. Both would declare the peer '$run'. \
-                    Rename one member.
+                    @Mockable cannot mock two members named 'run'. Both would declare the peer \
+                    '$run'. Give one of them its own peer name with 'named:'. Keep your own \
+                    declaration as it is.
                     """,
-                    line: 1,
-                    column: 1
+                    line: 4,
+                    column: 5,
+                    fixIts: [FixItSpec(message: "Add @MockedMethod(named: \"runForce\")")]
                 ),
             ],
             expansion: {
                 """
                 protocol VoidWorker {
                     func run()
+                    func run(force: Bool)
+                }
+                """
+            },
+            fixedSource: {
+                """
+                @Mockable
+                protocol VoidWorker {
+                    func run()
+                    @MockedMethod(named: "runForce")
                     func run(force: Bool)
                 }
                 """
@@ -263,11 +275,13 @@ struct `Macro Diagnostics` {
             diagnostics: [
                 DiagnosticSpec(
                     message: """
-                    @Mockable cannot mock two members named 'run'. Both would declare the peer '$run'. \
-                    Rename one member.
+                    @Mockable cannot mock two members named 'run'. Both would declare the peer \
+                    '$run'. Give one of them its own peer name with 'named:'. Keep your own \
+                    declaration as it is.
                     """,
-                    line: 1,
-                    column: 1
+                    line: 4,
+                    column: 5,
+                    fixIts: [FixItSpec(message: "Add @MockedMethod(named: \"runPeer\")")]
                 ),
             ],
             expansion: {
@@ -275,6 +289,157 @@ struct `Macro Diagnostics` {
                 protocol Runner {
                     var run: Bool { get }
                     func run()
+                }
+                """
+            },
+            fixedSource: {
+                """
+                @Mockable
+                protocol Runner {
+                    var run: Bool { get }
+                    @MockedMethod(named: "runPeer")
+                    func run()
+                }
+                """
+            }
+        )
+    }
+
+    // `named:` moves a peer, so it can also create a collision. The check reads the effective name.
+    @Test func namedThatCollidesDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                @Mockable
+                protocol Worker {
+                    func run()
+                    @MockedMethod(named: "run") func execute()
+                }
+                """
+            },
+            diagnostics: [
+                DiagnosticSpec(
+                    message: """
+                    @Mockable cannot mock two members named 'run'. Both would declare the peer \
+                    '$run'. Give one of them its own peer name with 'named:'. Keep your own \
+                    declaration as it is.
+                    """,
+                    line: 4,
+                    column: 5,
+                    fixIts: [FixItSpec(message: "Add @MockedMethod(named: \"executePeer\")")]
+                ),
+            ],
+            expansion: {
+                """
+                protocol Worker {
+                    func run()
+                    func execute()
+                }
+                """
+            }
+        )
+    }
+
+    @Test func nonLiteralPeerNameDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                struct Service {
+                    @MockedMethod(named: externalName) func load() -> Int
+                }
+                """
+            },
+            // The peer and body roles of @MockedMethod each read the name, so the error fires twice.
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'named' must be a string literal, not 'externalName'.",
+                    line: 2,
+                    column: 5
+                ),
+                DiagnosticSpec(
+                    message: "'named' must be a string literal, not 'externalName'.",
+                    line: 2,
+                    column: 5
+                ),
+            ],
+            expansion: {
+                """
+                struct Service {
+                    func load() -> Int
+                }
+                """
+            }
+        )
+    }
+
+    @Test func peerNameThatIsNotAnIdentifierDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                struct Service {
+                    @MockedProperty(named: "not valid", .get) var label: String
+                }
+                """
+            },
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'named' must be a Swift identifier, because the peer becomes '$not valid'.",
+                    line: 2,
+                    column: 5
+                ),
+                DiagnosticSpec(
+                    message: "'named' must be a Swift identifier, because the peer becomes '$not valid'.",
+                    line: 2,
+                    column: 5
+                ),
+            ],
+            expansion: {
+                """
+                struct Service {
+                    var label: String
+                }
+                """
+            }
+        )
+    }
+
+    @Test func mockedAttributeOnStructMemberDiagnoses() {
+        assertMacro(
+            of: {
+                """
+                @Mockable
+                struct Store {
+                    @MockedProperty(named: "tokenTwo") var token: () async -> String
+                }
+                """
+            },
+            diagnostics: [
+                DiagnosticSpec(
+                    message: """
+                    @Mockable does not support @MockedMethod or @MockedProperty on the struct member \
+                    'token'. Remove the attribute. Two stored properties cannot share a name, so their \
+                    peers never collide.
+                    """,
+                    line: 1,
+                    column: 1
+                ),
+            ],
+            // @Mockable emits nothing, but the member's own @MockedProperty still makes its peer.
+            expansion: {
+                """
+                struct Store {
+                    var token: () async -> String {
+                        get {
+                            return $tokenTwo.get.result()
+                        }
+                        set {
+                            $tokenTwo.set.result(newValue)
+                        }
+                    }
+
+                    #if MOCKING
+                    nonisolated let $tokenTwo = Mocking.Mock.Property<() async -> String>.GetSet(subject: "token")
+                    #endif
                 }
                 """
             }

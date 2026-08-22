@@ -469,6 +469,20 @@ struct MockedMultiArgService {
 }
 
 @Mockable
+protocol NamedWorker {
+    func run()
+    @MockedMethod(named: "runForce") func run(force: Bool)
+    var state: Int { get }
+    @MockedProperty(named: "stateLabel") var state2: String { get }
+}
+
+struct NamedPeerService {
+    @MockedMethod(named: "loadByID") func load(id: Int) -> String
+    @MockedProperty(named: "readableLabel", .get) var label: String
+    @MockedProperty(named: "editableTitle") var title: String
+}
+
+@Mockable
 protocol Beacon {
     static func ping() -> String
     func ping() -> String
@@ -1135,5 +1149,60 @@ struct `Void Output Leniency` {
             mock.$fetch.isExclusive = true
             await mock.fetch()
         }
+    }
+}
+
+@Suite
+struct `Named Peers` {
+    @Test
+    func `named overrides the peer of a hand-written method`() {
+        let sut = NamedPeerService()
+        sut.$loadByID.returns = "ok"
+
+        #expect(sut.load(id: 7) == "ok")
+        #expect(sut.$loadByID.callCount == 1)
+        #expect(sut.$loadByID.args == 7)
+    }
+
+    @Test
+    func `named overrides the peer of a hand-written property`() {
+        let sut = NamedPeerService()
+        sut.$readableLabel.get.returns = "label"
+
+        #expect(sut.label == "label")
+        #expect(sut.$readableLabel.get.callCount == 1)
+    }
+
+    @Test
+    func `named alone keeps the inferred property kind`() {
+        var sut = NamedPeerService()
+        sut.$editableTitle.get.returns = "title"
+
+        #expect(sut.title == "title")
+        sut.title = "next"
+        #expect(sut.$editableTitle.set.args == "next")
+    }
+
+    @Test
+    func `named resolves an overloaded protocol method`() {
+        let sut = NamedWorker.Mock()
+
+        sut.run()
+        sut.run(force: true)
+
+        #expect(sut.$run.callCount == 1)
+        #expect(sut.$runForce.callCount == 1)
+        #expect(sut.$runForce.args == true)
+    }
+
+    @Test
+    func `named on a protocol property wins over the generated name`() {
+        let sut = NamedWorker.Mock().with {
+            $0.$state.get.returns = 3
+            $0.$stateLabel.get.returns = "label"
+        }
+
+        #expect(sut.state == 3)
+        #expect(sut.state2 == "label")
     }
 }
