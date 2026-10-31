@@ -7,7 +7,7 @@
 @attached(peer, names: suffixed(Mock))
 public macro Mockable() = #externalMacro(module: "MockingMacros", type: "MockableMacro")
 
-#if MOCKING
+#if DEBUG || MOCKING
 /// `named:` overrides the generated peer name, so `@MockedMethod(named: "run2")` gives `$run2`.
 /// The name must be a string literal, because the macro reads it at compile time.
 @attached(peer, names: prefixed(`$`), arbitrary)

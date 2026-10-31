@@ -7,7 +7,7 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-#if MOCKING
+#if DEBUG || MOCKING
 public struct MockedMethodMacro: PeerMacro, BodyMacro {
     public static func expansion(
         of node: AttributeSyntax,

@@ -437,7 +437,7 @@ struct `Macro Diagnostics` {
                         }
                     }
 
-                    #if MOCKING
+                    #if DEBUG || MOCKING
                     nonisolated let $tokenTwo = Mocking.Mock.Property<() async -> String>.GetSet(subject: "token")
                     #endif
                 }

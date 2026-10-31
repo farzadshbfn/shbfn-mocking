@@ -26,7 +26,7 @@ struct `Mockable Macro Struct` {
             }
 
             extension SampleConfig: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class Mock: Sendable, MockWithable {
                     nonisolated let $timeout = Mocking.Mock.Property<Int>.Get(subject: "timeout")
 

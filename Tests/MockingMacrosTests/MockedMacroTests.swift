@@ -28,7 +28,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $title = Mocking.Mock.Property<String>.GetSet(subject: "title")
                 #endif
             }
@@ -55,7 +55,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $title = Mocking.Mock.Property<String>.GetSet(subject: "title")
                 #endif
             }
@@ -79,7 +79,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $title = Mocking.Mock.Property<String>.Get(subject: "title")
                 #endif
             }
@@ -103,7 +103,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $status = Mocking.Mock.Property<String>.GetAsync(subject: "status")
                 #endif
             }
@@ -127,7 +127,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $badge = Mocking.Mock.Property<Int>.GetAsyncSet(subject: "badge")
                 #endif
             }
@@ -151,7 +151,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $token = Mocking.Mock.Property<String>.GetThrows<any Swift.Error>(subject: "token")
                 #endif
             }
@@ -175,7 +175,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $secret = Mocking.Mock.Property<String>.GetThrowsSet<any Swift.Error>(subject: "secret")
                 #endif
             }
@@ -207,7 +207,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $session = Mocking.Mock.Property<String>.GetThrows<ServiceError>(subject: "session")
                 #endif
             }
@@ -240,7 +240,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $credential = Mocking.Mock.Property<String>.GetThrowsSet<ServiceError>(subject: "credential")
                 #endif
             }
@@ -263,7 +263,7 @@ struct `Mocked Macro` {
                     return $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int, String>.Sync(subject: "load(id:)")
                 #endif
             }
@@ -285,7 +285,7 @@ struct `Mocked Macro` {
                     return await $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int, String>.Async(subject: "load(id:)")
                 #endif
             }
@@ -308,7 +308,7 @@ struct `Mocked Macro` {
                     return try await $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int, String>.AsyncThrows<any Swift.Error>(subject: "load(id:)")
                 #endif
             }
@@ -339,7 +339,7 @@ struct `Mocked Macro` {
                     return try await $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int, String>.AsyncThrows<ServiceError>(subject: "load(id:)")
                 #endif
             }
@@ -362,7 +362,7 @@ struct `Mocked Macro` {
                     return $fetch.result((api: api, id: id))
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $fetch = Mocking.Mock.Method<(api: String, id: Int), String>.Sync(subject: "fetch(api:id:)")
                 #endif
             }
@@ -386,7 +386,7 @@ struct `Mocked Macro` {
                     return $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int, String>.Sync(subject: "load(api id:)")
                 #endif
             }
@@ -409,7 +409,7 @@ struct `Mocked Macro` {
                     return $assign.result((label: value, to: target))
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $assign = Mocking.Mock.Method<(label: String, to: Int), Bool>.Sync(subject: "assign(label value:to target:)")
                 #endif
             }
@@ -432,7 +432,7 @@ struct `Mocked Macro` {
                     return $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int?, String?>.Sync(subject: "load(id:)")
                 #endif
             }
@@ -454,7 +454,7 @@ struct `Mocked Macro` {
                     return $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int?, Int?>.Sync(subject: "load(id:)")
                 #endif
             }
@@ -481,7 +481,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $count = Mocking.Mock.Property<Int?>.GetSet(subject: "count")
                 #endif
             }
@@ -505,7 +505,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $badge = Mocking.Mock.Property<Int?>.Get(subject: "badge")
                 #endif
             }
@@ -535,7 +535,7 @@ struct `Mocked Macro` {
                     return $item.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static let $item = Mocking.Mock.Method<Int, String>.Sync(subject: "static item(id:)")
                 #endif
             }
@@ -567,7 +567,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static let $prefix = Mocking.Mock.Property<String>.Get(subject: "static prefix")
                 #endif
             }
@@ -590,7 +590,7 @@ struct `Mocked Macro` {
                     return try $test.result(callback)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $test = Mocking.Mock.Method<@MainActor (Int) async throws -> String, Void>.SyncThrows<any Swift.Error>(subject: "test(callback:)")
                 #endif
             }
@@ -613,7 +613,7 @@ struct `Mocked Macro` {
                     return $test.result(input as Any) as! B
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $test = Mocking.Mock.Method<Any, Any>.Sync(subject: "test(input:)")
                 #endif
             }
@@ -636,7 +636,7 @@ struct `Mocked Macro` {
                     return $map.result((value: value as Any, count: count)) as! T
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $map = Mocking.Mock.Method<(value: Any, count: Int), Any>.Sync(subject: "map(value:count:)")
                 #endif
             }
@@ -663,7 +663,7 @@ struct `Mocked Macro` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $send = Mocking.Mock.Method<Any, Any>.AsyncThrows<any Swift.Error>(subject: "send(_:)")
                 #endif
             }
@@ -694,7 +694,7 @@ struct `Mocked Macro` {
                     return try $transform.result(value as Any) as! T
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $transform = Mocking.Mock.Method<Any, Any>.SyncThrows<ServiceError>(subject: "transform(_:)")
                 #endif
             }

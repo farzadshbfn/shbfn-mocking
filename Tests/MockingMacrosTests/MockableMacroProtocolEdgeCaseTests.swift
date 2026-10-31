@@ -29,7 +29,7 @@ struct `Mockable Macro Protocol Edge Cases` {
                     var count: Int { get }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class StoreMock: Store, Sendable, MockWithable {
                     var count: Int {
                         get {
@@ -37,7 +37,7 @@ struct `Mockable Macro Protocol Edge Cases` {
                         }
                     }
 
-                    #if MOCKING
+                    #if DEBUG || MOCKING
                     nonisolated let $count = Mocking.Mock.Property<Int>.Get(subject: "count")
                     #endif
 
@@ -52,7 +52,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension FeatureNamespace.Store {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: FeatureNamespace.StoreMock {
                     FeatureNamespace.StoreMock()
                 }
@@ -60,7 +60,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension FeatureNamespace.Store {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = FeatureNamespace.StoreMock
                 #endif
             }
@@ -90,20 +90,20 @@ struct `Mockable Macro Protocol Edge Cases` {
                     func ping() async throws
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class TransportMock: Transport, Sendable, MockWithable {
                     func send(_ request: URLRequest) async throws(Error) -> (Data, HTTPURLResponse) {
                         return try await $send.result(request)
                     }
 
-                    #if MOCKING
+                    #if DEBUG || MOCKING
                     nonisolated let $send = Mocking.Mock.Method<URLRequest, (Data, HTTPURLResponse)>.AsyncThrows<Error>(subject: "send(_:)")
                     #endif
                     func ping() async throws {
                         return try await $ping.result()
                     }
 
-                    #if MOCKING
+                    #if DEBUG || MOCKING
                     nonisolated let $ping = Mocking.Mock.Method<Void, Void>.AsyncThrows<any Swift.Error>(subject: "ping()")
                     #endif
 
@@ -118,7 +118,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension Authentication.Transport {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: Authentication.TransportMock {
                     Authentication.TransportMock()
                 }
@@ -126,7 +126,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension Authentication.Transport {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = Authentication.TransportMock
                 #endif
             }
@@ -150,7 +150,7 @@ struct `Mockable Macro Protocol Edge Cases` {
                 func load(id: Int?) -> Int!
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class OptionalServiceMock: OptionalService, Sendable, MockWithable {
                 var count: Int? {
                     get {
@@ -161,14 +161,14 @@ struct `Mockable Macro Protocol Edge Cases` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $count = Mocking.Mock.Property<Int?>.GetSet(subject: "count")
                 #endif
                 func load(id: Int?) -> Int! {
                     return $load.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $load = Mocking.Mock.Method<Int?, Int?>.Sync(subject: "load(id:)")
                 #endif
 
@@ -182,7 +182,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             #endif
 
             extension OptionalService {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: OptionalServiceMock {
                     OptionalServiceMock()
                 }
@@ -190,7 +190,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension OptionalService {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = OptionalServiceMock
                 #endif
             }
@@ -214,7 +214,7 @@ struct `Mockable Macro Protocol Edge Cases` {
                 static func item(id: Int) -> String
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class CatalogAPIMock: CatalogAPI, Sendable, MockWithable {
                 static var prefix: String {
                     get {
@@ -222,14 +222,14 @@ struct `Mockable Macro Protocol Edge Cases` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static let $prefix = Mocking.Mock.Property<String>.Get(subject: "static prefix")
                 #endif
                 static func item(id: Int) -> String {
                     return $item.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static let $item = Mocking.Mock.Method<Int, String>.Sync(subject: "static item(id:)")
                 #endif
 
@@ -243,7 +243,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             #endif
 
             extension CatalogAPI {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: CatalogAPIMock {
                     CatalogAPIMock()
                 }
@@ -251,7 +251,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension CatalogAPI {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = CatalogAPIMock
                 #endif
             }
@@ -276,20 +276,20 @@ struct `Mockable Macro Protocol Edge Cases` {
                 func run(force: Bool)
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class WorkerMock: Worker, Sendable, MockWithable {
                 func run() {
                     return $run.result()
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $run = Mocking.Mock.Method<Void, Void>.Sync(subject: "run()")
                 #endif
                 func run(force: Bool) {
                     return $runForce.result(force)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $runForce = Mocking.Mock.Method<Bool, Void>.Sync(subject: "run(force:)")
                 #endif
 
@@ -303,7 +303,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             #endif
 
             extension Worker {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: WorkerMock {
                     WorkerMock()
                 }
@@ -311,7 +311,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension Worker {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = WorkerMock
                 #endif
             }
@@ -333,7 +333,7 @@ struct `Mockable Macro Protocol Edge Cases` {
                 var token: String { get async throws }
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class VaultMock: Vault, Sendable, MockWithable {
                 var token: String {
                     get async throws {
@@ -341,7 +341,7 @@ struct `Mockable Macro Protocol Edge Cases` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $token = Mocking.Mock.Property<String>.GetAsyncThrows<any Swift.Error>(subject: "token")
                 #endif
 
@@ -355,7 +355,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             #endif
 
             extension Vault {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: VaultMock {
                     VaultMock()
                 }
@@ -363,7 +363,7 @@ struct `Mockable Macro Protocol Edge Cases` {
             }
 
             extension Vault {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = VaultMock
                 #endif
             }

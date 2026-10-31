@@ -27,7 +27,7 @@ struct `Mockable Macro Generics` {
             }
 
             extension Box: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class Mock: Sendable, MockWithable {
                     nonisolated let $fallback = Mocking.Mock.Property<Value>.Get(subject: "fallback")
 
@@ -75,13 +75,13 @@ struct `Mockable Macro Generics` {
                 func fetch(id: Entity.ID) async throws -> Entity
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class RepositoryMock<Entity: Identifiable>: Repository, Sendable, MockWithable {
                 func fetch(id: Entity.ID) async throws -> Entity {
                     return try await $fetch.result(id)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $fetch = Mocking.Mock.Method<Entity.ID, Entity>.AsyncThrows<any Swift.Error>(subject: "fetch(id:)")
                 #endif
 
@@ -95,7 +95,7 @@ struct `Mockable Macro Generics` {
             #endif
 
             extension Repository {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = RepositoryMock
                 #endif
             }
@@ -121,13 +121,13 @@ struct `Mockable Macro Generics` {
                 func get() async throws(Failure) -> Element
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class StoreMock<Element: Sendable, Failure: Swift.Error>: Store, Sendable, MockWithable {
                 func get() async throws(Failure) -> Element {
                     return try await $get.result()
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $get = Mocking.Mock.Method<Void, Element>.AsyncThrows<Failure>(subject: "get()")
                 #endif
 
@@ -141,7 +141,7 @@ struct `Mockable Macro Generics` {
             #endif
 
             extension Store {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = StoreMock
                 #endif
             }

@@ -21,13 +21,13 @@ struct `Mockable Macro Method Generics` {
                 func test<A, B>(input: A) -> B
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class MapperMock: Mapper, Sendable, MockWithable {
                 func test<A, B>(input: A) -> B {
                     return $test.result(input as Any) as! B
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $test = Mocking.Mock.Method<Any, Any>.Sync(subject: "test(input:)")
                 #endif
 
@@ -41,7 +41,7 @@ struct `Mockable Macro Method Generics` {
             #endif
 
             extension Mapper {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: MapperMock {
                     MapperMock()
                 }
@@ -49,7 +49,7 @@ struct `Mockable Macro Method Generics` {
             }
 
             extension Mapper {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = MapperMock
                 #endif
             }
@@ -71,13 +71,13 @@ struct `Mockable Macro Method Generics` {
                 func encode<T>(_ value: T) -> Data where T: Encodable
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class EncoderMock: Encoder, Sendable, MockWithable {
                 func encode<T>(_ value: T) -> Data where T: Encodable {
                     return $encode.result(value as Any)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $encode = Mocking.Mock.Method<Any, Data>.Sync(subject: "encode(_:)")
                 #endif
 
@@ -91,7 +91,7 @@ struct `Mockable Macro Method Generics` {
             #endif
 
             extension Encoder {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: EncoderMock {
                     EncoderMock()
                 }
@@ -99,7 +99,7 @@ struct `Mockable Macro Method Generics` {
             }
 
             extension Encoder {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = EncoderMock
                 #endif
             }
@@ -121,13 +121,13 @@ struct `Mockable Macro Method Generics` {
                 func make<T: Equatable>() -> T
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class FactoryMock: Factory, Sendable, MockWithable {
                 func make<T: Equatable>() -> T {
                     return $make.result() as! T
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $make = Mocking.Mock.Method<Void, Any>.Sync(subject: "make()")
                 #endif
 
@@ -141,7 +141,7 @@ struct `Mockable Macro Method Generics` {
             #endif
 
             extension Factory {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: FactoryMock {
                     FactoryMock()
                 }
@@ -149,7 +149,7 @@ struct `Mockable Macro Method Generics` {
             }
 
             extension Factory {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = FactoryMock
                 #endif
             }
@@ -171,13 +171,13 @@ struct `Mockable Macro Method Generics` {
                 func decode<T: Decodable>(from data: Data) -> T
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class DecoderMock: Decoder, Sendable, MockWithable {
                 func decode<T: Decodable>(from data: Data) -> T {
                     return $decode.result(data) as! T
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $decode = Mocking.Mock.Method<Data, Any>.Sync(subject: "decode(from data:)")
                 #endif
 
@@ -191,7 +191,7 @@ struct `Mockable Macro Method Generics` {
             #endif
 
             extension Decoder {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: DecoderMock {
                     DecoderMock()
                 }
@@ -199,7 +199,7 @@ struct `Mockable Macro Method Generics` {
             }
 
             extension Decoder {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = DecoderMock
                 #endif
             }
@@ -222,7 +222,7 @@ struct `Mockable Macro Method Generics` {
                 func send<R: Request>(_ request: R) async throws(NetworkError<R.Failure>) -> Response<R.Output>
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class ClientMock: Client, Sendable, MockWithable {
                 func send<R: Request>(_ request: R) async throws(NetworkError<R.Failure>) -> Response<R.Output> {
                     do {
@@ -232,7 +232,7 @@ struct `Mockable Macro Method Generics` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $send = Mocking.Mock.Method<Any, Any>.AsyncThrows<any Swift.Error>(subject: "send(_:)")
                 #endif
 
@@ -246,7 +246,7 @@ struct `Mockable Macro Method Generics` {
             #endif
 
             extension Client {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: ClientMock {
                     ClientMock()
                 }
@@ -254,7 +254,7 @@ struct `Mockable Macro Method Generics` {
             }
 
             extension Client {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = ClientMock
                 #endif
             }

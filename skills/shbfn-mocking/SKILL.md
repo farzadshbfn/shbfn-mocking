@@ -1,6 +1,6 @@
 ---
 name: shbfn-mocking
-description: Use when a Swift test needs a test double from the shbfn-mocking package — mocking a protocol or struct, building a fixture, controlling what a call returns or throws, verifying calls (callCount, args, history), or waiting on a call with waitForCall. Also use to wire the MOCKING define, and for "type has no member 'Mock'" or "Mock return value not configured".
+description: Use when a Swift test needs a test double from the shbfn-mocking package — mocking a protocol or struct, building a fixture, controlling what a call returns or throws, verifying calls (callCount, args, history), or waiting on a call with waitForCall. Also use to wire the package into a target, and for "type has no member 'Mock'" or "Mock return value not configured".
 license: MIT
 ---
 
@@ -19,15 +19,16 @@ Test style (naming, `sut`, Given/When/Then, `confirmation`) lives in the
 
 .target(
     name: "MyFeature",
-    dependencies: [.product(name: "Mocking", package: "shbfn-mocking")],
-    swiftSettings: [.define("MOCKING", .when(configuration: .debug))]
+    dependencies: [.product(name: "Mocking", package: "shbfn-mocking")]
 ),
 ```
 
-Add both lines to **every target that uses the macro**: the production target that
+Add the dependency to **every target that uses the macro**: the production target that
 declares the type, and the test target. The macro puts all generated code inside
-`#if MOCKING`. Without the define the code compiles, but `Type.Mock()` does not exist.
-When `Type.Mock()` is "not found", check the define first.
+`#if DEBUG || MOCKING`, so debug builds need no define. For a configuration without
+`DEBUG`, add `.define("MOCKING")` to every one of those targets. When `Type.Mock()` is
+"not found", check that the target depends on `Mocking` and that the configuration
+gives it `DEBUG` or `MOCKING`.
 
 The package needs swift-tools 6.2 and iOS 26 / macOS 15. Call sites `import Mocking`.
 
