@@ -139,8 +139,9 @@ the requirement, so `{ get async throws }` needs no attribute.
 - **Generic protocol**: each `associatedtype` becomes a `Mock` parameter, in declaration
   order: `Store.Mock<Item, StoreError>()`. Never `Store<Item>.Mock<StoreError>()`. There
   is no `.mock`. Injection sites keep `some Store<Item>`.
-- **Generic methods** erase their parameters. `args` is `Any`, so cast:
-  `mock.$test.args as? Int == 42`. `.returns` must hold the type the caller expects.
+- **Generic methods** erase only the types that mention a method generic parameter, to
+  `Any`. `map<T>(value: T, count: Int)` records `(value: Any, count: Int)`. Cast the
+  erased part: `mock.$test.args as? Int == 42`. `.returns` must hold the type the caller expects.
 - **Static requirements plus associated types** are unsupported (macro error).
 
 ### Mocking without a type
@@ -195,7 +196,8 @@ Only one knob is active. Setting one clears the others.
 **`isExclusive`** defaults to `false`: an unconfigured peer returns the `Mockable` default
 (`0`, `""`, `false`, `nil`, or the struct fixture). Set `isExclusive = true` when such a
 silent default would hide missing setup. Every call then needs a configuration, or the
-mock traps with "Mock return value not configured".
+mock traps. The message is "Mock return value not configured.", or "Mock setter not
+configured." for a synchronous `Void` call.
 
 ### Verify
 
