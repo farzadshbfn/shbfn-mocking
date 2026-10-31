@@ -10,7 +10,7 @@ import SwiftSyntaxMacros
 struct MockingMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = {
         var macros: [Macro.Type] = [MockableMacro.self]
-        #if MOCKING
+        #if DEBUG || MOCKING
         macros.append(contentsOf: [MockedMethodMacro.self, MockedPropertyMacro.self])
         #endif
         return macros

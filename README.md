@@ -36,25 +36,32 @@ Add the package:
 ```
 
 Then depend on `Mocking` in **every target that uses the macro**. This includes the
-production target that declares the type, not only the test target. Define `MOCKING`
-for debug builds in each of those targets:
+production target that declares the type, not only the test target:
 
 ```swift
 .target(
     name: "MyFeature",
-    dependencies: [.product(name: "Mocking", package: "shbfn-mocking")],
-    swiftSettings: [.define("MOCKING", .when(configuration: .debug))]
+    dependencies: [.product(name: "Mocking", package: "shbfn-mocking")]
 ),
 .testTarget(
     name: "MyFeatureTests",
-    dependencies: ["MyFeature", .product(name: "Mocking", package: "shbfn-mocking")],
-    swiftSettings: [.define("MOCKING", .when(configuration: .debug))]
+    dependencies: ["MyFeature", .product(name: "Mocking", package: "shbfn-mocking")]
 ),
 ```
 
-The define is required. The macro puts all generated mock code inside `#if MOCKING`.
-Without the define your code still compiles, but `Type.Mock()` does not exist. Release
-builds ship no mock code.
+Debug builds need no define. The macro puts all generated mock code inside
+`#if DEBUG || MOCKING`, and both SwiftPM and Xcode set `DEBUG` for debug builds.
+Release builds ship no mock code.
+
+To get mocks in a configuration that does not set `DEBUG`, such as a staging build,
+define `MOCKING` in each target that uses the macro:
+
+```swift
+swiftSettings: [.define("MOCKING", .when(configuration: .release))]
+```
+
+All targets must agree on the condition. One target with mocks and one without gives
+missing-symbol or missing-conformance errors.
 
 ## Usage
 

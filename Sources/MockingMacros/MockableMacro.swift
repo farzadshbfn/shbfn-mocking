@@ -146,7 +146,7 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
 
         let source = """
         extension \(protocolName) {
-            #if MOCKING
+            #if DEBUG || MOCKING
             \(access)static var mock: \(mockTypeName) { \(mockTypeName)() }
             #endif
         }
@@ -172,7 +172,7 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
 
         let source = """
         extension \(protocolName) {
-            #if MOCKING
+            #if DEBUG || MOCKING
             \(access)typealias Mock = \(mockTypeName)
             #endif
         }
@@ -219,7 +219,7 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
 
         let source = """
         extension \(structName): Mockable {
-            #if MOCKING
+            #if DEBUG || MOCKING
             \(access)final class Mock: Sendable, MockWithable {
                 \(peers)
 

@@ -30,7 +30,7 @@ struct `Mockable Macro Witness` {
             }
 
             extension TokenStore: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class Mock: Sendable, MockWithable {
                     nonisolated let $token = Mocking.Mock.Method<Void, String>.AsyncThrows<AuthError>(subject: "token()")
 
@@ -87,7 +87,7 @@ struct `Mockable Macro Witness` {
             }
 
             extension TokenStore: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class Mock: Sendable, MockWithable {
                     nonisolated let $clientID = Mocking.Mock.Property<String>.Get(subject: "clientID")
 
@@ -139,7 +139,7 @@ struct `Mockable Macro Witness` {
             }
 
             extension Parser: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class Mock: Sendable, MockWithable {
                     nonisolated let $parse = Mocking.Mock.Method<(text: String, strict: Bool), Int>.SyncThrows<any Swift.Error>(subject: "parse(text:strict:)")
 
@@ -185,7 +185,7 @@ struct `Mockable Macro Witness` {
             }
 
             extension Config: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class Mock: Sendable, MockWithable {
                     nonisolated let $retryLimit = Mocking.Mock.Property<Int>.Get(subject: "retryLimit")
 
@@ -232,7 +232,7 @@ struct `Mockable Macro Witness` {
             }
 
             extension Client: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 public final class Mock: Sendable, MockWithable {
                     public nonisolated let $send = Mocking.Mock.Method<String, Void>.Sync(subject: "send(_:)")
 
@@ -282,7 +282,7 @@ struct `Mockable Macro Witness` {
             }
 
             extension Client: Mockable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 public final class Mock: Sendable, MockWithable {
                     public nonisolated let $send = Mocking.Mock.Method<String, Void>.Sync(subject: "send(_:)")
 

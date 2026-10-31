@@ -3,7 +3,7 @@
 //  See LICENSE in the project root for full details.
 //
 
-#if MOCKING
+#if DEBUG || MOCKING
 enum MockSupport {
     static func mock<Output>(for type: Output.Type) -> Output? {
         // `Void` cannot conform to `Mockable`, because it is a tuple type.

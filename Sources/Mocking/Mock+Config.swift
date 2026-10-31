@@ -3,7 +3,7 @@
 //  See LICENSE in the project root for full details.
 //
 
-#if MOCKING
+#if DEBUG || MOCKING
 extension Mock {
     package enum Configuration<Closure: ClosureSignature> {
         case unset

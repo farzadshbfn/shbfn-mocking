@@ -60,9 +60,9 @@ let package = Package(
 )
 
 // Adopt Swift's approachable-concurrency upcoming features across every target.
+// No `MOCKING` define here: debug builds already carry `DEBUG`, which the gates accept.
 for target in package.targets {
     target.swiftSettings = (target.swiftSettings ?? []) + [
-        .define("MOCKING", .when(configuration: .debug)),
         .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
         .enableUpcomingFeature("InferIsolatedConformances"),
     ]

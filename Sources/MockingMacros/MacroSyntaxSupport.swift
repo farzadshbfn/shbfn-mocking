@@ -82,7 +82,7 @@ enum MacroSyntaxSupport {
         let memberBlock = members.joined(separator: "\n\n")
         let header = "\(access)final class \(mockClassName)\(genericClause): \(protocolName), Sendable, MockWithable"
         return """
-        \(outer)#if MOCKING
+        \(outer)#if DEBUG || MOCKING
         \(outer)\(header)\(whereClause) {
         \(memberBlock)
         \(outer)}
@@ -191,7 +191,7 @@ enum MacroSyntaxSupport {
         access: String
     ) throws -> [DeclSyntax] {
         try parseDeclarations("""
-        #if MOCKING
+        #if DEBUG || MOCKING
         \(mockPeerStorage(peerName: peerName, factory: factory, isStatic: isStatic, access: access))
         #endif
         """)

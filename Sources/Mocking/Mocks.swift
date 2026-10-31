@@ -3,7 +3,7 @@
 //  See LICENSE in the project root for full details.
 //
 
-#if MOCKING
+#if DEBUG || MOCKING
 public enum Mock {
     public enum Method<Inputs, Output> {
         public typealias Sync = SyncInvocation<Inputs, Output, Never>

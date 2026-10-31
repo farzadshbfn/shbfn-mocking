@@ -13,7 +13,7 @@ struct WidgetID: Hashable, Sendable {
     }
 }
 
-#if MOCKING
+#if DEBUG || MOCKING
 extension WidgetID: Mockable {
     static var mock: WidgetID { WidgetID("fixture-default-id") }
 }
@@ -33,7 +33,7 @@ struct StrictWidget: Sendable, Equatable {
 }
 
 extension StrictWidget: Mockable {
-    #if MOCKING
+    #if DEBUG || MOCKING
     static var mock: StrictWidget { StrictWidget(id: WidgetID("strict-default")) }
     #endif
 }

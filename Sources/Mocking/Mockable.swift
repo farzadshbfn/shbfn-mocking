@@ -5,7 +5,7 @@
 
 /// Types that can provide a deterministic default value for lenient mocks.
 public protocol Mockable {
-    #if MOCKING
+    #if DEBUG || MOCKING
     static var mock: Self { get }
 
     /// Type-erased witness used to resolve `mock` across module boundaries.
@@ -13,7 +13,7 @@ public protocol Mockable {
     #endif
 }
 
-#if MOCKING
+#if DEBUG || MOCKING
 extension Mockable {
     public static func mock(as outputType: Any.Type) -> Any? {
         guard outputType == Self.self else { return nil }

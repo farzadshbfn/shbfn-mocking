@@ -25,7 +25,7 @@ struct `Mockable Macro Protocol` {
                 func greet(name: String) -> String
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class GreeterMock: Greeter, Sendable, MockWithable {
                 var greeting: String {
                     get {
@@ -33,14 +33,14 @@ struct `Mockable Macro Protocol` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $greeting = Mocking.Mock.Property<String>.Get(subject: "greeting")
                 #endif
                 func greet(name: String) -> String {
                     return $greet.result(name)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $greet = Mocking.Mock.Method<String, String>.Sync(subject: "greet(name:)")
                 #endif
 
@@ -54,7 +54,7 @@ struct `Mockable Macro Protocol` {
             #endif
 
             extension Greeter {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: GreeterMock {
                     GreeterMock()
                 }
@@ -62,7 +62,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension Greeter {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = GreeterMock
                 #endif
             }
@@ -85,13 +85,13 @@ struct `Mockable Macro Protocol` {
                 func config(for key: String) -> Int?
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class ConfigProvidingMock: ConfigProviding, Sendable, MockWithable {
                 func config(for key: String) -> Int? {
                     return $config.result(key)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $config = Mocking.Mock.Method<String, Int?>.Sync(subject: "config(for key:)")
                 #endif
 
@@ -105,7 +105,7 @@ struct `Mockable Macro Protocol` {
             #endif
 
             extension ConfigProviding {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: ConfigProvidingMock {
                     ConfigProvidingMock()
                 }
@@ -113,7 +113,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension ConfigProviding {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = ConfigProvidingMock
                 #endif
             }
@@ -135,13 +135,13 @@ struct `Mockable Macro Protocol` {
                 func reset()
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             final class ResettableMock: Resettable, Sendable, MockWithable {
                 func reset() {
                     return $reset.result()
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 nonisolated let $reset = Mocking.Mock.Method<Void, Void>.Sync(subject: "reset()")
                 #endif
 
@@ -155,7 +155,7 @@ struct `Mockable Macro Protocol` {
             #endif
 
             extension Resettable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: ResettableMock {
                     ResettableMock()
                 }
@@ -163,7 +163,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension Resettable {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = ResettableMock
                 #endif
             }
@@ -188,13 +188,13 @@ struct `Mockable Macro Protocol` {
                     func fetch(api: String, id: Int) -> String
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 final class APIMock: API, Sendable, MockWithable {
                     func fetch(api: String, id: Int) -> String {
                         return $fetch.result((api: api, id: id))
                     }
 
-                    #if MOCKING
+                    #if DEBUG || MOCKING
                     nonisolated let $fetch = Mocking.Mock.Method<(api: String, id: Int), String>.Sync(subject: "fetch(api:id:)")
                     #endif
 
@@ -209,7 +209,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension Feature.API {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 static var mock: Feature.APIMock {
                     Feature.APIMock()
                 }
@@ -217,7 +217,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension Feature.API {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 typealias Mock = Feature.APIMock
                 #endif
             }
@@ -241,7 +241,7 @@ struct `Mockable Macro Protocol` {
                 func createToken(_ input: String) async throws -> String
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             public final class APIProtocolMock: APIProtocol, Sendable, MockWithable {
                 public var status: String {
                     get {
@@ -249,14 +249,14 @@ struct `Mockable Macro Protocol` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 public nonisolated let $status = Mocking.Mock.Property<String>.Get(subject: "status")
                 #endif
                 public func createToken(_ input: String) async throws -> String {
                     return try await $createToken.result(input)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 public nonisolated let $createToken = Mocking.Mock.Method<String, String>.AsyncThrows<any Swift.Error>(subject: "createToken(_:)")
                 #endif
 
@@ -270,7 +270,7 @@ struct `Mockable Macro Protocol` {
             #endif
 
             extension APIProtocol {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 public static var mock: APIProtocolMock {
                     APIProtocolMock()
                 }
@@ -278,7 +278,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension APIProtocol {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 public typealias Mock = APIProtocolMock
                 #endif
             }
@@ -302,7 +302,7 @@ struct `Mockable Macro Protocol` {
                 func createToken(_ input: String) async throws -> String
             }
 
-            #if MOCKING
+            #if DEBUG || MOCKING
             package final class APIProtocolMock: APIProtocol, Sendable, MockWithable {
                 package var status: String {
                     get {
@@ -310,14 +310,14 @@ struct `Mockable Macro Protocol` {
                     }
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 package nonisolated let $status = Mocking.Mock.Property<String>.Get(subject: "status")
                 #endif
                 package func createToken(_ input: String) async throws -> String {
                     return try await $createToken.result(input)
                 }
 
-                #if MOCKING
+                #if DEBUG || MOCKING
                 package nonisolated let $createToken = Mocking.Mock.Method<String, String>.AsyncThrows<any Swift.Error>(subject: "createToken(_:)")
                 #endif
 
@@ -331,7 +331,7 @@ struct `Mockable Macro Protocol` {
             #endif
 
             extension APIProtocol {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 package static var mock: APIProtocolMock {
                     APIProtocolMock()
                 }
@@ -339,7 +339,7 @@ struct `Mockable Macro Protocol` {
             }
 
             extension APIProtocol {
-                #if MOCKING
+                #if DEBUG || MOCKING
                 package typealias Mock = APIProtocolMock
                 #endif
             }
