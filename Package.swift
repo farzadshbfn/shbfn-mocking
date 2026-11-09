@@ -17,7 +17,8 @@ let package = Package(
         .library(name: "Mocking", targets: ["Mocking"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0"),
+        // Open upper bound: each Swift release bumps the swift-syntax major, and a cap blocks its prebuilts.
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", "604.0.0"..<"700.0.0"),
     ],
     targets: [
         .macro(

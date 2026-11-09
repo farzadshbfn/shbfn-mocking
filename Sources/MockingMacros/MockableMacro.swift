@@ -465,11 +465,11 @@ private struct PeerNameCollision {
         .with(\.leadingTrivia, member.leadingTrivia)
 
         if var function = member.as(FunctionDeclSyntax.self) {
-            function.attributes = AttributeListSyntax([.attribute(attribute)] + function.attributes)
+            function.attributes = [.attribute(attribute)] + function.attributes
             return DeclSyntax(function)
         }
         if var property = member.as(VariableDeclSyntax.self) {
-            property.attributes = AttributeListSyntax([.attribute(attribute)] + property.attributes)
+            property.attributes = [.attribute(attribute)] + property.attributes
             return DeclSyntax(property)
         }
         return nil
