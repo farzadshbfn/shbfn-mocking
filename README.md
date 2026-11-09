@@ -35,6 +35,8 @@ Add the package:
 .package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", branch: "main"),
 ```
 
+`main` needs swift-syntax 604 or later. If your graph pins swift-syntax 602, use `exact: "0.1.0"` instead.
+
 Then depend on `Mocking` in **every target that uses the macro**. This includes the
 production target that declares the type, not only the test target:
 
