@@ -53,6 +53,9 @@ struct LiveTokenManager: Authorization.TokenManager {
 
 extension Authorization.TokenManagerKey: DependencyKey {
     static let liveValue: any Authorization.TokenManager = LiveTokenManager()
+    static var previewValue: any Authorization.TokenManager {
+        Authorization.TokenManager.Mock().with { $0.$count.returns = 3 }
+    }
 }
 
 /// A key that is its own value, the way a `@DependencyClient` is.
@@ -172,6 +175,13 @@ struct `MockableDependency` {
         @Dependency(Authorization.TokenManager.Key.self) var tokenManager
 
         #expect(tokenManager.count() == 7)
+    }
+
+    @Test(.dependency(\.context, .preview))
+    func `a preview value in an extension of the generated key wins in the preview context`() {
+        @Dependency(\.authorizationTokenManager) var tokenManager
+
+        #expect(tokenManager.count() == 3)
     }
 
     @Test
