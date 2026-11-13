@@ -16,7 +16,7 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
         if let structDecl = declaration.as(StructDeclSyntax.self) {
-            return try [mockableStructExtension(for: structDecl)]
+            return try [mockableStructExtension(for: structDecl, named: type.trimmedDescription)]
         }
 
         if let protocolDecl = declaration.as(ProtocolDeclSyntax.self) {
@@ -193,36 +193,14 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
     /// Every `@Mockable` struct gets the same controller grammar as a protocol: a nested `Mock` with `$` peers,
     /// `init(mock:)`, `instance`, and a lenient `mock`. Closure properties become `Mock.Method` peers (full
     /// config + verification); value properties become `Mock.Property.Get` peers (configure-only fixtures).
-    private static func mockableStructExtension(for structDecl: StructDeclSyntax) throws -> ExtensionDeclSyntax {
-        let properties = collectStoredProperties(structDecl.memberBlock)
-        guard !properties.isEmpty else {
-            throw MockableMacroError.structHasNoMockableProperties
-        }
-        // A struct takes its peers from the stored properties, which already carry unique names.
-        if let attributed = memberWithMockedAttribute(structDecl.memberBlock) {
-            throw MockableMacroError.mockedAttributeOnStructMember(attributed)
-        }
-        guard !declaresNestedMockType(structDecl.memberBlock) else {
-            throw MockableMacroError.witnessMockCollision
-        }
-
-        // The nested `Mock` inherits the struct's generic context, so generic structs need no special
-        // generation — only value peers whose type mentions a parameter must wire leniently (see below).
-        let structName = structDecl.name.text
+    /// `qualifiedName` is the full type name, so the extension resolves a nested struct, not a namesake.
+    static func mockableStructExtension(
+        for structDecl: StructDeclSyntax,
+        named qualifiedName: String
+    ) throws -> ExtensionDeclSyntax {
+        let witnessed = try witnessProperties(of: structDecl)
+        let structName = qualifiedName
         let access = MacroSyntaxSupport.accessModifier(for: structDecl)
-        let genericParameters = Set(
-            structDecl.genericParameterClause?.parameters.map(\.name.text) ?? []
-        )
-        let witnessed = try properties.map {
-            try WitnessMockMacroSupport.property(
-                name: $0.name,
-                type: $0.type,
-                defaultValue: $0.defaultValue,
-                access: $0.access,
-                genericParameters: genericParameters
-            )
-        }
-
         let peers = witnessed.map(\.peerDeclaration).joined(separator: "\n\n")
         let wiring = witnessed.map(\.wiringExpression).joined(separator: ",\n")
 
@@ -254,6 +232,72 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         """
 
         return try parseExtension(source)
+    }
+
+    /// A struct mock as a peer class beside the struct, so its types resolve in the struct's own scope.
+    /// `@MockableDependency` uses it; the class adds `exclusive()` for the key's test value.
+    static func structMockPeer(for structDecl: StructDeclSyntax, mockClassName: String) throws -> DeclSyntax {
+        let witnessed = try witnessProperties(of: structDecl)
+        let structName = structDecl.name.text
+        let access = MacroSyntaxSupport.accessModifier(for: structDecl)
+        let peers = witnessed.map(\.peerDeclaration).joined(separator: "\n\n")
+        let wiring = witnessed.map(\.wiringExpression).joined(separator: ",\n")
+        let exclusive = witnessed
+            .map { "\(MacroSyntaxSupport.mockPeerName(for: $0.name)).makeExclusive()" }
+            .joined(separator: "\n")
+
+        let source = """
+        #if DEBUG || MOCKING
+        \(access)final class \(mockClassName): Sendable, MockWithable {
+            \(peers)
+
+            \(access)init() {
+            }
+
+            \(access)var instance: \(structName) {
+                let mock = self
+                return \(structName)(
+                    \(wiring)
+                )
+            }
+
+            \(access)func exclusive() -> \(mockClassName) {
+                \(exclusive)
+                return self
+            }
+        }
+        #endif
+        """
+        return try MacroSyntaxSupport.parseDeclaration(source)
+    }
+
+    private static func witnessProperties(of structDecl: StructDeclSyntax) throws -> [WitnessMockMacroSupport.Property] {
+        let properties = collectStoredProperties(structDecl.memberBlock)
+        guard !properties.isEmpty else {
+            throw MockableMacroError.structHasNoMockableProperties
+        }
+        // A struct takes its peers from the stored properties, which already carry unique names.
+        if let attributed = memberWithMockedAttribute(structDecl.memberBlock) {
+            throw MockableMacroError.mockedAttributeOnStructMember(attributed)
+        }
+        guard !declaresNestedMockType(structDecl.memberBlock) else {
+            throw MockableMacroError.witnessMockCollision
+        }
+
+        // The nested `Mock` inherits the struct's generic context, so generic structs need no special
+        // generation — only value peers whose type mentions a parameter must wire leniently.
+        let genericParameters = Set(
+            structDecl.genericParameterClause?.parameters.map(\.name.text) ?? []
+        )
+        return try properties.map {
+            try WitnessMockMacroSupport.property(
+                name: $0.name,
+                type: $0.type,
+                defaultValue: $0.defaultValue,
+                access: $0.access,
+                genericParameters: genericParameters
+            )
+        }
     }
 
     private static func peerMacroMembers(

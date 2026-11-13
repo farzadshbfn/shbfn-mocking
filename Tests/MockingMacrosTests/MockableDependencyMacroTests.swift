@@ -107,8 +107,8 @@ struct `MockableDependency Macro` {
             diagnostics: [
                 DiagnosticSpec(
                     message: """
-                    @MockableDependency requires a protocol without associated types, because its key holds \
-                    'any Protocol'.
+                    @MockableDependency requires a protocol without associated types or a non-generic struct, \
+                    because its key holds one concrete value type.
                     """,
                     line: 1,
                     column: 1
@@ -123,6 +123,74 @@ struct `MockableDependency Macro` {
                 """
             }
         )
+    }
+
+    @Test func `a nested struct gets a peer mock, a key, and a Key alias`() {
+        assertMacro {
+            """
+            extension Authorization {
+                @MockableDependency
+                public struct Session: Sendable {
+                    public var refresh: @Sendable (_ token: Token) async throws(Failure) -> Token
+                }
+            }
+            """
+        } expansion: {
+            """
+            extension Authorization {
+                public struct Session: Sendable {
+                    public var refresh: @Sendable (_ token: Token) async throws(Failure) -> Token
+                }
+
+                #if DEBUG || MOCKING
+                public final class SessionMock: Sendable, MockWithable {
+                    public nonisolated let $refresh = Mocking.Mock.Method<Token, Token>.AsyncThrows<Failure>(subject: "refresh(token:)")
+
+                    public init() {
+                    }
+
+                    public var instance: Session {
+                        let mock = self
+                        return Session(
+                            refresh: { (token: Token) async throws(Failure) in
+                                try await mock.$refresh.result(token)
+                            }
+                        )
+                    }
+
+                    public func exclusive() -> SessionMock {
+                        $refresh.makeExclusive()
+                        return self
+                    }
+                }
+                #endif
+
+                public enum SessionKey: Dependencies.TestDependencyKey {
+                    public static var testValue: Authorization.Session {
+                        #if DEBUG || MOCKING
+                        Authorization.SessionMock().exclusive().instance
+                        #else
+                        fatalError("Authorization.Session has no test value in this build.")
+                        #endif
+                    }
+                }
+            }
+
+            extension Authorization.Session: Mockable {
+                #if DEBUG || MOCKING
+                public typealias Mock = Authorization.SessionMock
+
+                public static var mock: Authorization.Session {
+                    Mock().instance
+                }
+                #endif
+            }
+
+            extension Authorization.Session {
+                public typealias Key = Authorization.SessionKey
+            }
+            """
+        }
     }
 }
 #endif

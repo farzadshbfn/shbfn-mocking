@@ -7,7 +7,7 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 
 /// Fills a `DependencyValues` property with a `get` and `set` through its key.
-/// `any P` reads `P.Key`, which `@MockableDependency` declares. Any other type is its own key.
+/// The type's `Key` is the key, which `@MockableDependency` declares; `any P` reads `P.Key`.
 public struct DependencyEntryMacro: AccessorMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -49,7 +49,7 @@ public struct DependencyEntryMacro: AccessorMacro {
         if let existential = type.as(SomeOrAnyTypeSyntax.self), existential.someOrAnySpecifier.text == "any" {
             return "\(existential.constraint.trimmedDescription).Key"
         }
-        return type.trimmedDescription
+        return "\(type.trimmedDescription).Key"
     }
 }
 

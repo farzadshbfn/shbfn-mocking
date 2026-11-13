@@ -39,6 +39,20 @@ extension Authorization {
     }
 }
 
+extension Authorization {
+    /// A struct dependency: each behaviour is an instance, not a conforming type.
+    /// A top-level `Session` exists too, so the generated mock must name this one in full.
+    @MockableDependency
+    struct Session: Sendable {
+        var userID: @Sendable () -> Int
+        var refresh: @Sendable (_ token: Token) async throws(Failure) -> Token
+    }
+}
+
+extension Authorization.SessionKey: DependencyKey {
+    static let liveValue = Authorization.Session(userID: { 42 }, refresh: { _ in Authorization.Token(value: "live") })
+}
+
 /// A production-like value, added the way a live module would add it.
 struct LiveTokenManager: Authorization.TokenManager {
     var validToken: Authorization.Token? { get async throws(Authorization.Failure) { .init(value: "live") } }
@@ -71,7 +85,8 @@ enum FarewellKey: TestDependencyKey {
 
 extension DependencyValues {
     @DependencyEntry var authorizationTokenManager: any Authorization.TokenManager
-    @DependencyEntry var greeting: Greeting
+    @DependencyEntry(Greeting.self) var greeting: Greeting
+    @DependencyEntry var authorizationSession: Authorization.Session
     // A macro argument cannot name a key that another macro generates, so this form is for hand-written keys.
     @DependencyEntry(FarewellKey.self) var farewell: Greeting
 }
@@ -201,6 +216,41 @@ struct `MockableDependency` {
         }
 
         #expect(greeting == Greeting(text: "override"))
+    }
+
+    @Test
+    func `a struct dependency answers through its mock and records the call`() async throws {
+        let mock = Authorization.Session.Mock()
+        mock.$refresh.returns = .init(value: "new")
+
+        let token = try await withDependencies {
+            $0.authorizationSession = mock.instance
+        } operation: {
+            @Dependency(\.authorizationSession) var session
+            return try await session.refresh(.init(value: "old"))
+        }
+
+        #expect(token == .init(value: "new"))
+        #expect(mock.$refresh.args == .init(value: "old"))
+    }
+
+    @Test
+    func `a struct dependency's test value reports unset calls and keeps typed throws`() async {
+        @Dependency(\.authorizationSession) var session
+
+        await withKnownIssue {
+            #expect(session.userID() == 0)
+            await #expect(throws: Authorization.Failure.rejected) {
+                try await session.refresh(.init(value: "old"))
+            }
+        }
+    }
+
+    @Test(.dependency(\.context, .live))
+    func `a struct dependency's live context resolves the live value`() {
+        @Dependency(\.authorizationSession) var session
+
+        #expect(session.userID() == 42)
     }
 }
 #endif

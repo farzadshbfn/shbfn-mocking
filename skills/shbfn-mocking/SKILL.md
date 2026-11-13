@@ -15,7 +15,7 @@ Test style (naming, `sut`, Given/When/Then, `confirmation`) lives in the
 ## 1. Integrate
 
 ```swift
-.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.2.0"),
+.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.3.0"),
 
 .target(
     name: "MyFeature",
@@ -231,8 +231,9 @@ task. Never build a latch, an actor, or a semaphore to observe a mock.
 ## 4. swift-dependencies
 
 With the `Dependencies` trait (`traits: ["Dependencies"]` on the package), mark a
-dependency protocol `@MockableDependency` instead of `@Mockable`. The protocol must be
-`Sendable` with no associated types. It may nest in a namespace.
+dependency `@MockableDependency` instead of `@Mockable`. It is a `Sendable` protocol with
+no associated types, or a non-generic `Sendable` struct of closures. It may nest in a
+namespace. A struct's mock is the peer class `<Name>Mock`; tests pass `mock.instance`.
 
 ```swift
 extension Authorization {
@@ -252,8 +253,9 @@ extension Authorization.TokenManagerKey: DependencyKey {
 
 - The macro generates `Authorization.TokenManagerKey` (test value: an exclusive mock)
   and the alias `Authorization.TokenManager.Key`.
-- `@DependencyEntry` writes the accessor's `get` and `set`. `any P` reads `P.Key`; any
-  other type is its own key; `@DependencyEntry(SomeKey.self)` names a hand-written key.
+- `@DependencyEntry` writes the accessor's `get` and `set`. It reads the type's `Key`
+  (`any P` reads `P.Key`, a struct `S` reads `S.Key`). `@DependencyEntry(SomeKey.self)`
+  names a hand-written key or a type that is its own key.
   It cannot name a macro-generated key. A macro cannot add the accessor from the
   protocol, because an extension macro extends only the type it is attached to.
 - Tests override with `withDependencies { $0.tokenManager = mock }`.

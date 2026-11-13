@@ -31,7 +31,7 @@ struct `DependencyEntry Macro` {
         }
     }
 
-    @Test func `a concrete type is its own key`() {
+    @Test func `a struct reads its Key alias`() {
         assertMacro {
             """
             extension DependencyValues {
@@ -43,10 +43,10 @@ struct `DependencyEntry Macro` {
             extension DependencyValues {
                 var weeklyPlanClient: WeeklyPlanClient {
                     get {
-                        self[WeeklyPlanClient.self]
+                        self[WeeklyPlanClient.Key.self]
                     }
                     set {
-                        self[WeeklyPlanClient.self] = newValue
+                        self[WeeklyPlanClient.Key.self] = newValue
                     }
                 }
             }

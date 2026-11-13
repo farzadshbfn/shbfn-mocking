@@ -7,6 +7,7 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 
 /// `@Mockable`, plus a swift-dependencies key whose test value is an exclusive mock.
+/// It takes a protocol without associated types, or a non-generic struct.
 public struct MockableDependencyMacro: ExtensionMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -15,18 +16,39 @@ public struct MockableDependencyMacro: ExtensionMacro, PeerMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let protocolDecl = try dependencyProtocol(declaration)
-        let mockExtensions = try MockableMacro.expansion(
-            of: node,
-            attachedTo: declaration,
-            providingExtensionsOf: type,
-            conformingTo: protocols,
-            in: context
-        )
-        // An extension macro can only extend the protocol, so `@DependencyEntry` writes the accessor.
-        let names = Names(protocolDecl, in: context)
+        let names = Names(declaration, in: context)
+        let mockExtensions: [ExtensionDeclSyntax]
+        switch try dependencyDeclaration(declaration) {
+        case let .protocol(protocolDecl):
+            mockExtensions = try MockableMacro.expansion(
+                of: node,
+                attachedTo: protocolDecl,
+                providingExtensionsOf: type,
+                conformingTo: protocols,
+                in: context
+            )
+        case .struct:
+            // The mock is a peer class; the extension only names it, so no type in it needs the struct's scope.
+            let source = """
+            extension \(names.qualifiedType): Mockable {
+                #if DEBUG || MOCKING
+                \(names.access)typealias Mock = \(names.qualifiedMockClass)
+
+                \(names.access)static var mock: \(names.qualifiedType) {
+                    Mock().instance
+                }
+                #endif
+            }
+            """
+            guard let mockExtension = try MacroSyntaxSupport.parseDeclaration(source).as(ExtensionDeclSyntax.self)
+            else {
+                throw MockableMacroError.failedToGenerateExtension
+            }
+            mockExtensions = [mockExtension]
+        }
+        // An extension macro can only extend the attached type, so `@DependencyEntry` writes the accessor.
         let alias = """
-        extension \(names.qualifiedProtocol) {
+        extension \(names.qualifiedType) {
             \(names.access)typealias Key = \(names.qualifiedKey)
         }
         """
@@ -41,19 +63,33 @@ public struct MockableDependencyMacro: ExtensionMacro, PeerMacro {
         providingPeersOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        // The extension role reports a protocol that cannot be a key, so this role emits nothing for it.
-        guard let protocolDecl = declaration.as(ProtocolDeclSyntax.self),
-              !MacroSyntaxSupport.hasAssociatedTypes(protocolDecl)
+        // The extension role reports a declaration that cannot be a key, so this role emits nothing for it.
+        guard let group = declaration.asProtocol(DeclGroupSyntax.self),
+              let kind = try? dependencyDeclaration(group)
         else { return [] }
-        let mock = try MockableMacro.protocolMockPeers(for: protocolDecl, in: context, addsExclusive: true)
-        let names = Names(protocolDecl, in: context)
+        let names = Names(group, in: context)
+        let mock: [DeclSyntax]
+        let testValue: String
+        switch kind {
+        case let .protocol(protocolDecl):
+            mock = try MockableMacro.protocolMockPeers(for: protocolDecl, in: context, addsExclusive: true)
+            testValue = "\(names.qualifiedMockClass)().exclusive()"
+        case let .struct(structDecl):
+            mock = [
+                try MockableMacro.structMockPeer(
+                    for: structDecl,
+                    mockClassName: MacroSyntaxSupport.mockClassName(for: structDecl.name.text)
+                ),
+            ]
+            testValue = "\(names.qualifiedMockClass)().exclusive().instance"
+        }
         let key = """
         \(names.access)enum \(names.key): Dependencies.TestDependencyKey {
-            \(names.access)static var testValue: any \(names.qualifiedProtocol) {
+            \(names.access)static var testValue: \(names.valueType) {
                 #if DEBUG || MOCKING
-                \(names.qualifiedMock)().exclusive()
+                \(testValue)
                 #else
-                fatalError("\(names.qualifiedProtocol) has no test value in this build.")
+                fatalError("\(names.qualifiedType) has no test value in this build.")
                 #endif
             }
         }
@@ -61,40 +97,55 @@ public struct MockableDependencyMacro: ExtensionMacro, PeerMacro {
         return mock + [try MacroSyntaxSupport.parseDeclaration(key)]
     }
 
-    private static func dependencyProtocol(_ declaration: some DeclGroupSyntax) throws -> ProtocolDeclSyntax {
-        guard let protocolDecl = declaration.as(ProtocolDeclSyntax.self),
-              !MacroSyntaxSupport.hasAssociatedTypes(protocolDecl)
-        else {
-            throw MockableDependencyMacroError.notAPlainProtocol
+    private enum Kind {
+        case `protocol`(ProtocolDeclSyntax)
+        case `struct`(StructDeclSyntax)
+    }
+
+    private static func dependencyDeclaration(_ declaration: some DeclGroupSyntax) throws -> Kind {
+        if let protocolDecl = declaration.as(ProtocolDeclSyntax.self),
+           !MacroSyntaxSupport.hasAssociatedTypes(protocolDecl) {
+            return .protocol(protocolDecl)
         }
-        return protocolDecl
+        if let structDecl = declaration.as(StructDeclSyntax.self), structDecl.genericParameterClause == nil {
+            return .struct(structDecl)
+        }
+        throw MockableDependencyMacroError.notADependencyDeclaration
     }
 }
 
-/// Every name the expansion spells, resolved from the protocol and its enclosing types.
+/// Every name the expansion spells, resolved from the type and its enclosing types.
 private struct Names {
     let access: String
-    let qualifiedProtocol: String
+    let qualifiedType: String
+    /// `any P` for a protocol, the struct itself for a struct.
+    let valueType: String
     let key: String
     let qualifiedKey: String
-    let qualifiedMock: String
+    let qualifiedMockClass: String
 
-    init(_ protocolDecl: ProtocolDeclSyntax, in context: some MacroExpansionContext) {
-        let name = protocolDecl.name.text
-        access = MacroSyntaxSupport.accessModifier(for: protocolDecl)
-        qualifiedProtocol = MacroSyntaxSupport.qualifiedProtocolName(for: protocolDecl, in: context)
-        let parent = qualifiedProtocol.split(separator: ".").dropLast().joined(separator: ".")
+    init(_ declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) {
+        let name = declaration.as(ProtocolDeclSyntax.self)?.name.text
+            ?? declaration.as(StructDeclSyntax.self)?.name.text
+            ?? ""
+        access = MacroSyntaxSupport.accessModifier(for: declaration)
+        qualifiedType = MacroSyntaxSupport.qualifiedName(name, in: context)
+        valueType = declaration.is(ProtocolDeclSyntax.self) ? "any \(qualifiedType)" : qualifiedType
+        let parent = qualifiedType.split(separator: ".").dropLast().joined(separator: ".")
         let prefix = parent.isEmpty ? "" : "\(parent)."
         key = "\(name)Key"
         qualifiedKey = prefix + key
-        qualifiedMock = prefix + MacroSyntaxSupport.mockClassName(for: name)
+        qualifiedMockClass = prefix + MacroSyntaxSupport.mockClassName(for: name)
     }
 }
 
 enum MockableDependencyMacroError: Error, CustomStringConvertible {
-    case notAPlainProtocol
+    case notADependencyDeclaration
 
     var description: String {
-        "@MockableDependency requires a protocol without associated types, because its key holds 'any Protocol'."
+        """
+        @MockableDependency requires a protocol without associated types or a non-generic struct, \
+        because its key holds one concrete value type.
+        """
     }
 }
