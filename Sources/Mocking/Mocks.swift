@@ -77,4 +77,13 @@ public enum Mock {
         }
     }
 }
+
+// `exclusive()` on a `@MockableDependency` mock calls this on every property peer.
+extension Mock.Property.Get { public func makeExclusive() { get.makeExclusive() } }
+extension Mock.Property.GetSet { public func makeExclusive() { get.makeExclusive(); set.makeExclusive() } }
+extension Mock.Property.GetAsync { public func makeExclusive() { get.makeExclusive() } }
+extension Mock.Property.GetAsyncSet { public func makeExclusive() { get.makeExclusive(); set.makeExclusive() } }
+extension Mock.Property.GetAsyncThrows { public func makeExclusive() { get.makeExclusive() } }
+extension Mock.Property.GetThrows { public func makeExclusive() { get.makeExclusive() } }
+extension Mock.Property.GetThrowsSet { public func makeExclusive() { get.makeExclusive(); set.makeExclusive() } }
 #endif

@@ -9,7 +9,7 @@ import SwiftSyntaxMacros
 @main
 struct MockingMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = {
-        var macros: [Macro.Type] = [MockableMacro.self]
+        var macros: [Macro.Type] = [MockableMacro.self, MockableDependencyMacro.self, DependencyEntryMacro.self]
         #if DEBUG || MOCKING
         macros.append(contentsOf: [MockedMethodMacro.self, MockedPropertyMacro.self])
         #endif

@@ -20,6 +20,11 @@ extension Mock {
             self.tracker = CallTracker(subject: subject)
         }
 
+        /// Makes an unset call report an issue, even when a lenient default exists.
+        public func makeExclusive() {
+            isExclusive = true
+        }
+
         fileprivate func updateConfiguration(_ transform: (inout Configuration<Closure>) -> Void) {
             configurationLock.withLock { transform(&$0) }
         }
@@ -152,7 +157,7 @@ extension Mock.Invocation where Closure: SyncInvokable {
             if !isExclusive, let mock = MockSupport.mock(for: Closure.Output.self) {
                 return mock
             }
-            fatalError("Mock return value not configured.", file: file, line: line)
+            return try MockSupport.unconfigured(tracker.subject, failing: Closure.Failure.self, file: file, line: line)
         }
     }
 }
@@ -182,7 +187,7 @@ extension Mock.SyncInvocation where Output == Void {
             return
         case .unset:
             if isExclusive {
-                fatalError("Mock setter not configured.", file: file, line: line)
+                return try MockSupport.unconfigured(tracker.subject, failing: Failure.self, file: file, line: line)
             }
         }
     }
@@ -208,7 +213,7 @@ extension Mock.Invocation where Closure: AsyncInvokable {
             if !isExclusive, let mock = MockSupport.mock(for: Closure.Output.self) {
                 return mock
             }
-            fatalError("Mock return value not configured.", file: file, line: line)
+            return try MockSupport.unconfigured(tracker.subject, failing: Closure.Failure.self, file: file, line: line)
         }
     }
 }
@@ -238,7 +243,7 @@ extension Mock.AsyncInvocation where Output == Void {
             return
         case .unset:
             if isExclusive {
-                fatalError("Mock return value not configured.", file: file, line: line)
+                return try MockSupport.unconfigured(tracker.subject, failing: Failure.self, file: file, line: line)
             }
         }
     }

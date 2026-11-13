@@ -1,6 +1,6 @@
 ---
 name: shbfn-mocking
-description: Use when a Swift test needs a test double from the shbfn-mocking package — mocking a protocol or struct, building a fixture, controlling what a call returns or throws, verifying calls (callCount, args, history), or waiting on a call with waitForCall. Also use to wire the package into a target, and for "type has no member 'Mock'" or "Mock return value not configured".
+description: Use when a Swift test needs a test double from the shbfn-mocking package — mocking a protocol or struct, building a fixture, controlling what a call returns or throws, verifying calls (callCount, args, history), waiting on a call with waitForCall, or registering a mocked protocol as a swift-dependencies key (@MockableDependency, @DependencyEntry). Also use to wire the package into a target, and for "type has no member 'Mock'" or "Mock return value not configured".
 license: MIT
 ---
 
@@ -15,7 +15,7 @@ Test style (naming, `sut`, Given/When/Then, `confirmation`) lives in the
 ## 1. Integrate
 
 ```swift
-.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", branch: "main"),
+.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.2.0"),
 
 .target(
     name: "MyFeature",
@@ -227,3 +227,36 @@ so wait on the **last** call in a chain.
 
 Every peer records under a `Mutex`, so read `callCount`, `args`, and `history` from any
 task. Never build a latch, an actor, or a semaphore to observe a mock.
+
+## 4. swift-dependencies
+
+With the `Dependencies` trait (`traits: ["Dependencies"]` on the package), mark a
+dependency protocol `@MockableDependency` instead of `@Mockable`. The protocol must be
+`Sendable` with no associated types. It may nest in a namespace.
+
+```swift
+extension Authorization {
+    @MockableDependency
+    public protocol TokenManager: Sendable { … }
+}
+
+extension DependencyValues {
+    @DependencyEntry public var tokenManager: any Authorization.TokenManager
+}
+
+// In the live module
+extension Authorization.TokenManagerKey: DependencyKey {
+    public static let liveValue: any Authorization.TokenManager = LiveTokenManager()
+}
+```
+
+- The macro generates `Authorization.TokenManagerKey` (test value: an exclusive mock)
+  and the alias `Authorization.TokenManager.Key`.
+- `@DependencyEntry` writes the accessor's `get` and `set`. `any P` reads `P.Key`; any
+  other type is its own key; `@DependencyEntry(SomeKey.self)` names a hand-written key.
+  It cannot name a macro-generated key. A macro cannot add the accessor from the
+  protocol, because an extension macro extends only the type it is attached to.
+- Tests override with `withDependencies { $0.tokenManager = mock }`.
+- Under the trait, an unset call on an exclusive mock reports a test issue instead of
+  trapping. It returns the lenient value, else throws the error's `mock` or
+  `UnconfiguredCall`, else traps. Call `.exclusive()` on a mock you build to get this.

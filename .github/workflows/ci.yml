@@ -35,6 +35,9 @@ jobs:
       - name: Test
         run: swift test --xunit-output test-results.xml
 
+      - name: Test with the Dependencies trait
+        run: swift test --traits Dependencies --xunit-output test-results-dependencies.xml
+
       # SwiftPM writes Swift Testing results to <name>-swift-testing.xml.
       - name: Report
         if: always()

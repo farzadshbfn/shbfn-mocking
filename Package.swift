@@ -16,9 +16,16 @@ let package = Package(
     products: [
         .library(name: "Mocking", targets: ["Mocking"]),
     ],
+    traits: [
+        .trait(
+            name: "Dependencies",
+            description: "Adds @MockableDependency, which registers a mock as a swift-dependencies key."
+        ),
+    ],
     dependencies: [
         // Open upper bound: each Swift release bumps the swift-syntax major, and a cap blocks its prebuilts.
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "604.0.0"..<"700.0.0"),
+        .package(url: "https://github.com/pointfreeco/swift-dependencies.git", from: "1.17.2"),
     ],
     targets: [
         .macro(
@@ -34,6 +41,11 @@ let package = Package(
             name: "Mocking",
             dependencies: [
                 "MockingMacros",
+                .product(
+                    name: "Dependencies",
+                    package: "swift-dependencies",
+                    condition: .when(traits: ["Dependencies"])
+                ),
             ],
             path: "Sources/Mocking"
         ),
@@ -44,7 +56,19 @@ let package = Package(
                 "MockingMacros",
             ],
             path: "Tests",
-            exclude: ["MockingMacrosTests"]
+            exclude: ["MockingMacrosTests", "MockingDependenciesTests"]
+        ),
+        .testTarget(
+            name: "MockingDependenciesTests",
+            dependencies: [
+                "Mocking",
+                .product(
+                    name: "DependenciesTestSupport",
+                    package: "swift-dependencies",
+                    condition: .when(traits: ["Dependencies"])
+                ),
+            ],
+            path: "Tests/MockingDependenciesTests"
         ),
         // Uses SwiftSyntaxMacrosGenericTestSupport (prebuilt), not MacroTesting, to skip swift-syntax source build.
         .testTarget(

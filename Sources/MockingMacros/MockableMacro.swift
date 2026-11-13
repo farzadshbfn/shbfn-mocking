@@ -47,7 +47,15 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         guard let protocolDecl = declaration.as(ProtocolDeclSyntax.self) else {
             return []
         }
+        return try protocolMockPeers(for: protocolDecl, in: context, addsExclusive: false)
+    }
 
+    /// The mock class peer. `addsExclusive` adds `exclusive()`, which `@MockableDependency` test values call.
+    static func protocolMockPeers(
+        for protocolDecl: ProtocolDeclSyntax,
+        in context: some MacroExpansionContext,
+        addsExclusive: Bool
+    ) throws -> [DeclSyntax] {
         let baseIndentLevel = 0
         let mockClassName = MacroSyntaxSupport.mockClassName(for: protocolDecl.name.text)
         let access = MacroSyntaxSupport.accessModifier(for: protocolDecl)
@@ -68,7 +76,8 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
             from: protocolDecl,
             mockClassName: mockClassName,
             access: access,
-            bodyIndentLevel: baseIndentLevel + 1
+            bodyIndentLevel: baseIndentLevel + 1,
+            addsExclusive: addsExclusive
         )
 
         let source = MacroSyntaxSupport.protocolMockSource(
@@ -251,10 +260,12 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
         from protocolDecl: ProtocolDeclSyntax,
         mockClassName: String,
         access: String,
-        bodyIndentLevel: Int
+        bodyIndentLevel: Int,
+        addsExclusive: Bool
     ) throws -> [String] {
         let memberIndent = MacroSyntaxSupport.indent(level: bodyIndentLevel)
         var members: [String] = []
+        var instancePeers: [String] = []
 
         for member in protocolDecl.memberBlock.members {
             if let function = member.decl.as(FunctionDeclSyntax.self) {
@@ -263,6 +274,10 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
                 let written = MacroSyntaxSupport.mockedAttribute(on: function.attributes)
                 let attribute = written?.trimmedDescription ?? "@MockedMethod"
                 members.append("\(memberIndent)\(attribute)\n\(memberIndent)\(access)\(signature)")
+                if !MacroSyntaxSupport.isStatic(function.modifiers) {
+                    let name = peerName(of: function.attributes, default: function.name.text)
+                    instancePeers.append(MacroSyntaxSupport.mockPeerName(for: name))
+                }
             }
 
             if let property = member.decl.as(VariableDeclSyntax.self),
@@ -281,10 +296,23 @@ public struct MockableMacro: ExtensionMacro, PeerMacro {
                 let staticKeyword = MacroSyntaxSupport.staticKeyword(property.modifiers)
                 let declaration = "\(access)\(staticKeyword)var \(identifier): \(valueType)"
                 members.append("\(memberIndent)\(attribute)\n\(memberIndent)\(declaration)")
+                if staticKeyword.isEmpty {
+                    let name = peerName(of: property.attributes, default: identifier)
+                    instancePeers.append(MacroSyntaxSupport.mockPeerName(for: name))
+                }
             }
         }
 
         members.append("\(memberIndent)\(access)init() {}")
+        if addsExclusive {
+            let body = instancePeers.map { "\(memberIndent)    \($0).makeExclusive()" }.joined(separator: "\n")
+            members.append("""
+            \(memberIndent)\(access)func exclusive() -> \(mockClassName) {
+            \(body)
+            \(memberIndent)    return self
+            \(memberIndent)}
+            """)
+        }
         members.append("\(memberIndent)\(access)var instance: \(mockClassName) { self }")
         return members
     }
