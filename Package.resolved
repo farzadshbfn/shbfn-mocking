@@ -1,51 +1,6 @@
 {
-  "originHash" : "b7b835ac7e245c54c29ef891c42264af7174dda85434fb249b2a569eb79b3d0f",
+  "originHash" : "f5480b26fcbbd01efd21154bbb50a3a95d487f4d52d9f779e805513f6d5d5c3c",
   "pins" : [
-    {
-      "identity" : "combine-schedulers",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/combine-schedulers",
-      "state" : {
-        "revision" : "114354e8c1667a2edc4993700fb9fa4f90157b56",
-        "version" : "1.2.2"
-      }
-    },
-    {
-      "identity" : "swift-clocks",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/swift-clocks",
-      "state" : {
-        "revision" : "82440fa0a8b1c381a6d1e8e0fc7bbba53ec63204",
-        "version" : "1.1.1"
-      }
-    },
-    {
-      "identity" : "swift-concurrency-extras",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/swift-concurrency-extras",
-      "state" : {
-        "revision" : "8a4260f7373493435bd21194585c95b72bfdd401",
-        "version" : "1.4.3"
-      }
-    },
-    {
-      "identity" : "swift-dependencies",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/swift-dependencies.git",
-      "state" : {
-        "revision" : "2f83b70a6fbf45795dd40ccaa907bad3c8d93fe1",
-        "version" : "1.17.2"
-      }
-    },
-    {
-      "identity" : "swift-issue-reporting",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/swift-issue-reporting",
-      "state" : {
-        "revision" : "b23bb4493c439d3e05152bc167014235ba3d47fc",
-        "version" : "2.1.2"
-      }
-    },
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",

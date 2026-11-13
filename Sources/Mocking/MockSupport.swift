@@ -5,7 +5,8 @@
 
 #if DEBUG || MOCKING
 #if Dependencies
-import IssueReporting
+// swift-dependencies re-exports IssueReporting, under whichever package name its manifest uses.
+import Dependencies
 #endif
 
 enum MockSupport {

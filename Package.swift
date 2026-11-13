@@ -26,7 +26,6 @@ let package = Package(
         // Open upper bound: each Swift release bumps the swift-syntax major, and a cap blocks its prebuilts.
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "604.0.0"..<"700.0.0"),
         .package(url: "https://github.com/pointfreeco/swift-dependencies.git", from: "1.17.2"),
-        .package(url: "https://github.com/pointfreeco/swift-issue-reporting", from: "2.1.0"),
     ],
     targets: [
         .macro(
@@ -45,11 +44,6 @@ let package = Package(
                 .product(
                     name: "Dependencies",
                     package: "swift-dependencies",
-                    condition: .when(traits: ["Dependencies"])
-                ),
-                .product(
-                    name: "IssueReporting",
-                    package: "swift-issue-reporting",
                     condition: .when(traits: ["Dependencies"])
                 ),
             ],
