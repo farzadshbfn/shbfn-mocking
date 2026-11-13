@@ -14,6 +14,7 @@ import Testing
 // The Mocking macros, by spelling, for assertMacroExpansion.
 let mockingMacroSpecs: [String: MacroSpec] = [
     "Mockable": MacroSpec(type: MockableMacro.self, conformances: ["Mockable"]),
+    "MockableDependency": MacroSpec(type: MockableDependencyMacro.self, conformances: ["Mockable"]),
     "MockedMethod": MacroSpec(type: MockedMethodMacro.self),
     "MockedProperty": MacroSpec(type: MockedPropertyMacro.self),
 ]

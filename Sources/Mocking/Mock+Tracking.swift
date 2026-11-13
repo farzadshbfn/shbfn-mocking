@@ -86,7 +86,7 @@ public final class CallTracker<Inputs>: @unchecked Sendable {
         state.withLock { $0.inputHistory }
     }
 
-    private let subject: String?
+    let subject: String?
     private let state = Mutex(State())
     private let waiter = CallWaiter()
 

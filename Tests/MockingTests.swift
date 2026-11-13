@@ -1132,6 +1132,8 @@ struct `Void Output Leniency` {
         #expect(mock.callCount == 1)
     }
 
+    // The `Dependencies` trait reports these calls as test issues instead of trapping.
+    #if !Dependencies
     @Test
     func `exclusive sync Void method traps when not configured`() async {
         await #expect(processExitsWith: .failure) {
@@ -1158,6 +1160,7 @@ struct `Void Output Leniency` {
             await mock.fetch()
         }
     }
+    #endif
 }
 
 @Suite
