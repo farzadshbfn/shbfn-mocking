@@ -15,15 +15,25 @@ public struct MockableDependencyMacro: ExtensionMacro, PeerMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        _ = try dependencyProtocol(declaration)
-        // An extension macro can only extend the protocol, so the `DependencyValues` accessor stays hand-written.
-        return try MockableMacro.expansion(
+        let protocolDecl = try dependencyProtocol(declaration)
+        let mockExtensions = try MockableMacro.expansion(
             of: node,
             attachedTo: declaration,
             providingExtensionsOf: type,
             conformingTo: protocols,
             in: context
         )
+        // An extension macro can only extend the protocol, so `@DependencyEntry` writes the accessor.
+        let names = Names(protocolDecl, in: context)
+        let alias = """
+        extension \(names.qualifiedProtocol) {
+            \(names.access)typealias Key = \(names.qualifiedKey)
+        }
+        """
+        guard let aliasExtension = try MacroSyntaxSupport.parseDeclaration(alias).as(ExtensionDeclSyntax.self) else {
+            throw MockableMacroError.failedToGenerateExtension
+        }
+        return mockExtensions + [aliasExtension]
     }
 
     public static func expansion(
@@ -66,6 +76,7 @@ private struct Names {
     let access: String
     let qualifiedProtocol: String
     let key: String
+    let qualifiedKey: String
     let qualifiedMock: String
 
     init(_ protocolDecl: ProtocolDeclSyntax, in context: some MacroExpansionContext) {
@@ -75,6 +86,7 @@ private struct Names {
         let parent = qualifiedProtocol.split(separator: ".").dropLast().joined(separator: ".")
         let prefix = parent.isEmpty ? "" : "\(parent)."
         key = "\(name)Key"
+        qualifiedKey = prefix + key
         qualifiedMock = prefix + MacroSyntaxSupport.mockClassName(for: name)
     }
 }

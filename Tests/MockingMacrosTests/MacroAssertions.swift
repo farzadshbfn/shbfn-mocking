@@ -15,6 +15,7 @@ import Testing
 let mockingMacroSpecs: [String: MacroSpec] = [
     "Mockable": MacroSpec(type: MockableMacro.self, conformances: ["Mockable"]),
     "MockableDependency": MacroSpec(type: MockableDependencyMacro.self, conformances: ["Mockable"]),
+    "DependencyEntry": MacroSpec(type: DependencyEntryMacro.self),
     "MockedMethod": MacroSpec(type: MockedMethodMacro.self),
     "MockedProperty": MacroSpec(type: MockedPropertyMacro.self),
 ]

@@ -55,12 +55,22 @@ extension Authorization.TokenManagerKey: DependencyKey {
     static let liveValue: any Authorization.TokenManager = LiveTokenManager()
 }
 
-// A macro cannot add this accessor, so a consumer that wants a key path writes it.
+/// A key that is its own value, the way a `@DependencyClient` is.
+struct Greeting: TestDependencyKey, Equatable {
+    var text: String
+    static let testValue = Greeting(text: "test")
+}
+
+/// A hand-written key whose value type does not lead to it.
+enum FarewellKey: TestDependencyKey {
+    static let testValue = Greeting(text: "bye")
+}
+
 extension DependencyValues {
-    var authorizationTokenManager: any Authorization.TokenManager {
-        get { self[Authorization.TokenManagerKey.self] }
-        set { self[Authorization.TokenManagerKey.self] = newValue }
-    }
+    @DependencyEntry var authorizationTokenManager: any Authorization.TokenManager
+    @DependencyEntry var greeting: Greeting
+    // A macro argument cannot name a key that another macro generates, so this form is for hand-written keys.
+    @DependencyEntry(FarewellKey.self) var farewell: Greeting
 }
 
 /// Reads the dependency the way production code does.
@@ -158,10 +168,29 @@ struct `MockableDependency` {
     }
 
     @Test(.dependency(\.context, .live))
-    func `the live context resolves the live value through the key type`() {
-        @Dependency(Authorization.TokenManagerKey.self) var tokenManager
+    func `the live context resolves the live value through the Key alias`() {
+        @Dependency(Authorization.TokenManager.Key.self) var tokenManager
 
         #expect(tokenManager.count() == 7)
+    }
+
+    @Test
+    func `an entry with an explicit key reads that key`() {
+        @Dependency(\.farewell) var farewell
+
+        #expect(farewell == Greeting(text: "bye"))
+    }
+
+    @Test
+    func `an entry for a type that is its own key reads and writes that key`() {
+        let greeting = withDependencies {
+            $0.greeting = Greeting(text: "override")
+        } operation: {
+            @Dependency(\.greeting) var greeting
+            return greeting
+        }
+
+        #expect(greeting == Greeting(text: "override"))
     }
 }
 #endif

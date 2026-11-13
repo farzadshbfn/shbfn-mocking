@@ -8,7 +8,7 @@ import SwiftSyntaxMacrosGenericTestSupport
 import Testing
 
 struct `MockableDependency Macro` {
-    @Test func `a nested protocol gets a key beside its mock, and the mock gets exclusive()`() {
+    @Test func `a nested protocol gets a key beside its mock, a Key alias, and exclusive()`() {
         assertMacro {
             """
             extension Authorization {
@@ -84,6 +84,10 @@ struct `MockableDependency Macro` {
                 #if DEBUG || MOCKING
                 public typealias Mock = Authorization.TokenManagerMock
                 #endif
+            }
+
+            extension Authorization.TokenManager {
+                public typealias Key = Authorization.TokenManagerKey
             }
             """
         }
