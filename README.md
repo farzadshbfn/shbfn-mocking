@@ -32,10 +32,10 @@ gh skill install farzadshbfn/shbfn-mocking shbfn-testing
 Add the package:
 
 ```swift
-.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", branch: "main"),
+.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.2.0"),
 ```
 
-`main` needs swift-syntax 604 or later. If your graph pins swift-syntax 602, use `exact: "0.1.0"` instead.
+`0.2.0` needs swift-syntax 604 or later. If your graph pins swift-syntax 602, use `exact: "0.1.0"` instead.
 
 Then depend on `Mocking` in **every target that uses the macro**. This includes the
 production target that declares the type, not only the test target:
@@ -140,7 +140,7 @@ The default is `false`. Unconfigured peers return `Mockable` defaults: `Int` giv
 
 Set `isExclusive = true` when such a silent default lets your code continue with a
 meaningless value and hides missing setup. Every call must then have a configuration,
-or the mock traps.
+or the mock traps. With the `Dependencies` trait, it reports a test issue instead.
 
 ## Verifying
 
@@ -219,6 +219,71 @@ mock.run(force: true)
 `named:` takes a string literal. It works on `@MockedMethod` and on `@MockedProperty`, both
 on a hand-written type and on a member of an `@Mockable` protocol. The member's own
 attribute always wins over the generated one.
+
+## swift-dependencies
+
+The `Dependencies` trait registers a mocked protocol as a
+[swift-dependencies](https://github.com/pointfreeco/swift-dependencies) key. Turn it on
+where you add the package:
+
+```swift
+.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.2.0", traits: ["Dependencies"]),
+```
+
+Mark the protocol `@MockableDependency` instead of `@Mockable`. It must be `Sendable`
+and have no associated types. It can live inside a namespace, and typed throws stay:
+
+```swift
+extension Authorization {
+    @MockableDependency
+    public protocol TokenManager: Sendable {
+        func refresh(_ rejected: Token) async throws(Network.Error) -> Token
+    }
+}
+```
+
+Besides the mock, the macro adds:
+- `Authorization.TokenManagerKey: TestDependencyKey`. Its `testValue` is an exclusive mock.
+- `Authorization.TokenManager.Key`, an alias of that key.
+
+Write the accessor with `@DependencyEntry`. It fills in the `get` and `set`, so call
+sites keep the key path:
+
+```swift
+extension DependencyValues {
+    @DependencyEntry public var tokenManager: any Authorization.TokenManager
+}
+```
+
+`any P` reads `P.Key`. Any other type is its own key, for example a `@DependencyClient`.
+For a hand-written key, name it: `@DependencyEntry(FarewellKey.self)`. The argument
+cannot name a key that another macro generates.
+
+Give the key its live value where the live type lives:
+
+```swift
+extension Authorization.TokenManagerKey: DependencyKey {
+    public static let liveValue: any Authorization.TokenManager = LiveTokenManager()
+}
+```
+
+In a test, override the dependency with a mock you configure:
+
+```swift
+let tokens = Authorization.TokenManager.Mock()
+tokens.$refresh.returns = .fresh
+
+try await withDependencies { $0.tokenManager = tokens } operation: { … }
+#expect(tokens.$refresh.callCount == 1)
+```
+
+Under the trait, an unset call on an exclusive mock reports a test issue and the test
+continues. The call returns the lenient value. With no lenient value, it throws the
+error type's `mock` (typed throws) or `UnconfiguredCall` (untyped throws). Otherwise it
+traps. A mock that you build yourself stays lenient unless you call `exclusive()`.
+
+The trait applies to the whole package graph. One manifest that turns it on turns it on
+for every target that uses `Mocking`.
 
 ## Waiting on unstructured concurrency
 
