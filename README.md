@@ -32,10 +32,10 @@ gh skill install farzadshbfn/shbfn-mocking shbfn-testing
 Add the package:
 
 ```swift
-.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.2.0"),
+.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.3.0"),
 ```
 
-`0.2.0` needs swift-syntax 604 or later. If your graph pins swift-syntax 602, use `exact: "0.1.0"` instead.
+`0.3.0` needs swift-syntax 604 or later. If your graph pins swift-syntax 602, use `exact: "0.1.0"` instead.
 
 Then depend on `Mocking` in **every target that uses the macro**. This includes the
 production target that declares the type, not only the test target:
@@ -227,11 +227,12 @@ The `Dependencies` trait registers a mocked protocol as a
 where you add the package:
 
 ```swift
-.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.2.0", traits: ["Dependencies"]),
+.package(url: "https://github.com/farzadshbfn/shbfn-mocking.git", from: "0.3.0", traits: ["Dependencies"]),
 ```
 
-Mark the protocol `@MockableDependency` instead of `@Mockable`. It must be `Sendable`
-and have no associated types. It can live inside a namespace, and typed throws stay:
+Mark the dependency `@MockableDependency` instead of `@Mockable`. It can be a `Sendable`
+protocol with no associated types, or a non-generic `Sendable` struct of closures. It can
+live inside a namespace, and typed throws stay:
 
 ```swift
 extension Authorization {
@@ -242,9 +243,23 @@ extension Authorization {
 }
 ```
 
+A struct works the same way. Each behaviour is an instance, so it has no conforming types:
+
+```swift
+extension Authorization {
+    @MockableDependency
+    public struct Session: Sendable {
+        public var refresh: @Sendable (_ token: Token) async throws(Network.Error) -> Token
+    }
+}
+```
+
 Besides the mock, the macro adds:
 - `Authorization.TokenManagerKey: TestDependencyKey`. Its `testValue` is an exclusive mock.
 - `Authorization.TokenManager.Key`, an alias of that key.
+
+A struct's mock is the peer class `Authorization.SessionMock`, aliased as `Session.Mock`. It
+sits beside the struct, so the struct's closure types resolve in the struct's scope.
 
 Write the accessor with `@DependencyEntry`. It fills in the `get` and `set`, so call
 sites keep the key path:
@@ -255,9 +270,10 @@ extension DependencyValues {
 }
 ```
 
-`any P` reads `P.Key`. Any other type is its own key, for example a `@DependencyClient`.
-For a hand-written key, name it: `@DependencyEntry(FarewellKey.self)`. The argument
-cannot name a key that another macro generates.
+It reads the type's `Key`: `any P` reads `P.Key`, and a struct `S` reads `S.Key`. For a
+hand-written key, or a type that is its own key such as a `@DependencyClient`, name it:
+`@DependencyEntry(FarewellKey.self)`. The argument cannot name a key that another macro
+generates.
 
 Give the key its live value where the live type lives:
 
@@ -267,7 +283,8 @@ extension Authorization.TokenManagerKey: DependencyKey {
 }
 ```
 
-In a test, override the dependency with a mock you configure:
+In a test, override the dependency with a mock you configure. For a struct, pass
+`mock.instance`:
 
 ```swift
 let tokens = Authorization.TokenManager.Mock()

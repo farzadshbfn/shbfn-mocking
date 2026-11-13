@@ -36,7 +36,12 @@ enum MacroSyntaxSupport {
         for protocolDecl: ProtocolDeclSyntax,
         in context: some MacroExpansionContext
     ) -> String {
-        var components = [protocolDecl.name.text]
+        qualifiedName(protocolDecl.name.text, in: context)
+    }
+
+    /// `name` prefixed with every enclosing type and extension: `Authorization.TokenManager`.
+    static func qualifiedName(_ name: String, in context: some MacroExpansionContext) -> String {
+        var components = [name]
 
         for syntax in context.lexicalContext {
             if let extensionDecl = syntax.as(ExtensionDeclSyntax.self) {
