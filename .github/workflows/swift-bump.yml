@@ -1,0 +1,60 @@
+name: Swift Bump
+
+# Twice a month: move CI to the newest Swift release, test it on Linux, and auto-merge on green.
+on:
+  schedule:
+    - cron: '23 3 1,15 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: swift-bump
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # A GITHUB_TOKEN push or PR starts no workflows, so the PR's CI would never run.
+      GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+    steps:
+      - name: Require the bot token
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Add the BOT_TOKEN secret: a fine-grained PAT with Contents and Pull requests read/write on this repo."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Test the bump script
+        run: ./.github/scripts/swift-bump-test.sh
+
+      - name: Plan
+        id: plan
+        run: ./.github/scripts/swift-bump.sh plan
+
+      - name: Set up Swift ${{ steps.plan.outputs.latest }}
+        if: steps.plan.outputs.action == 'open' || steps.plan.outputs.action == 'rewrite'
+        uses: SwiftyLab/setup-swift@v1
+        with:
+          swift-version: ${{ steps.plan.outputs.latest }}
+
+      - name: Bump, test, and open or rewrite the PR
+        if: steps.plan.outputs.action == 'open' || steps.plan.outputs.action == 'rewrite'
+        env:
+          VERSION: ${{ steps.plan.outputs.latest }}
+        run: |
+          git config user.name "$(gh api user --jq '.name // .login')"
+          git config user.email "$(gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"')"
+          ./.github/scripts/swift-bump.sh apply "$VERSION"
+          log="$RUNNER_TEMP/swift-bump-test.log"
+          result=passed
+          { swift test && swift test --traits Dependencies; } > "$log" 2>&1 || result=failed
+          ./.github/scripts/swift-bump.sh publish "$VERSION" "$result" "$log"
